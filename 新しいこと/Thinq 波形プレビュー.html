@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thinq — Aurora Ring</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #090812;
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-family: -apple-system, 'Helvetica Neue', 'Hiragino Sans', sans-serif;
+    }
+    canvas { position: absolute; top: 0; left: 0; }
+    #ui {
+      position: absolute;
+      pointer-events: none; user-select: none;
+    }
+    #logo {
+      font-size: 13px; font-weight: 200; letter-spacing: 0.55em;
+      color: #e8e4ff;
+      text-shadow: 0 0 24px rgba(200,180,255,0.35);
+    }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"><div id="logo">thinq</div></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let dpr = 1, W = 0, H = 0;
+
+// ─── Color zones ─────────────────────────────────────────────
+const ZONES = [
+  { t: 0.00, rgb: [205,  52,  16] },
+  { t: 0.07, rgb: [222,  18,   0] },
+  { t: 0.14, rgb: [255,  55,  10] },
+  { t: 0.22, rgb: [222,  38, 118] },
+  { t: 0.30, rgb: [182,  46, 162] },
+  { t: 0.38, rgb: [ 38,  74, 222] },
+  { t: 0.47, rgb: [ 48,  48, 192] },
+  { t: 0.53, rgb: [ 70,  66, 128] },
+  { t: 0.58, rgb: [  0, 162, 200] },
+  { t: 0.66, rgb: [  0, 205, 158] },
+  { t: 0.73, rgb: [ 62, 212,  70] },
+  { t: 0.81, rgb: [168, 228,  24] },
+  { t: 0.88, rgb: [252, 198,   0] },
+  { t: 0.94, rgb: [255, 112,  20] },
+  { t: 1.00, rgb: [205,  52,  16] },
+];
+function lerpRGB(t) {
+  for (let i = 0; i < ZONES.length - 1; i++) {
+    const a = ZONES[i], b = ZONES[i+1];
+    if (t >= a.t && t <= b.t) {
+      const f = (t - a.t) / (b.t - a.t);
+      return a.rgb.map((v,j) => Math.round(v + (b.rgb[j]-v)*f));
+    }
+  }
+  return ZONES[ZONES.length-1].rgb;
+}
+
+function zoneW(t, lo, hi, ramp=0.055) {
+  if (t <= lo || t >= hi) return 0;
+  return Math.min((t-lo)/ramp, (hi-t)/ramp, 1);
+}
+
+function sn(x) { const v = Math.sin(x); return v * v; }
+
+function env(t, time) {
+  const anger  = Math.pow(sn(t*Math.PI*5  + time*0.38), 0.30)  * zoneW(t, 0.02, 0.20) * 0.92;
+  const anx    = (sn(t*Math.PI*7  + 0.35  + time*0.62) * 0.52
+               +  sn(t*Math.PI*11 + 0.75  + time*0.50) * 0.28) * zoneW(t, 0.18, 0.36) * 0.76;
+  const sad    = (Math.sin(t*Math.PI*2.8  + 1.0 + time*0.30) * 0.18 + 0.26) * zoneW(t, 0.34, 0.55) * 0.50;
+  const fat    = (Math.sin(t*Math.PI*1.6  + time*0.18) * 0.08 + 0.18)       * zoneW(t, 0.50, 0.60) * 0.34;
+  const calm   = (Math.sin(t*Math.PI*2.2  + time*0.26) * 0.17 + 0.34)       * zoneW(t, 0.57, 0.72) * 0.48;
+  const joy    = (Math.sin(t*Math.PI*3.8  - 0.3 + time*0.38) * 0.34 + 0.50) * zoneW(t, 0.68, 0.86) * 0.70;
+  const excite = (Math.sin(t*Math.PI*5.0  + 0.8 + time*0.48) * 0.46 + 0.50) * zoneW(t, 0.82, 0.99) * 0.86;
+
+  const peak = Math.max(anger, anx, sad, fat, calm, joy, excite);
+  const breathe = 1
+    + Math.sin(time*0.55)          * 0.10
+    + Math.sin(time*0.34 + 1.8)   * 0.07
+    + Math.sin(time*0.78 + t*2.5) * 0.05;
+  return Math.max(0.10, peak * breathe);
+}
+
+const N        = 200;   // ← 本数を減らしてすき間を作る
+const _rawH    = new Float32Array(N);
+const _smoothH = new Float32Array(N);
+function smoothHeights(time, maxS) {
+  for (let i = 0; i < N; i++) _rawH[i] = env(i/N, time) * maxS;
+  const K = 5;
+  for (let i = 0; i < N; i++) {
+    let sum = 0, wt = 0;
+    for (let k = -K; k <= K; k++) {
+      const w = Math.exp(-k*k * 0.30);
+      sum += _rawH[(i+k+N) % N] * w;
+      wt  += w;
+    }
+    _smoothH[i] = sum / wt;
+  }
+}
+
+function draw(ts) {
+  const time = ts * 0.001;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#090812';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx    = W / 2;
+  const cy    = H / 2;
+  const side  = Math.min(W, H);
+  const pulse = 1 + Math.sin(time * 0.52) * 0.028;
+  const R     = side * 0.27 * pulse;
+  const maxS  = side * 0.26;   // ← 長め（放射感アップ）
+  const rot   = time * 0.30 + Math.sin(time * 0.11) * 0.10;
+
+  smoothHeights(time, maxS);
+
+  // ── Ambient aura ──────────────────────────────────────────
+  ctx.save();
+  const aura = ctx.createRadialGradient(cx, cy, R*0.3, cx, cy, R+maxS*2.0);
+  aura.addColorStop(0,   'rgba(110,40,190,0.13)');
+  aura.addColorStop(0.3, 'rgba(80, 20,150,0.07)');
+  aura.addColorStop(0.7, 'rgba(40, 10, 90,0.03)');
+  aura.addColorStop(1,   'rgba(  0, 0,  0,  0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath(); ctx.arc(cx, cy, R+maxS*2.0, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ── Inner disk glow ───────────────────────────────────────
+  const disk = ctx.createRadialGradient(cx, cy, 0, cx, cy, R*0.92);
+  disk.addColorStop(0,   'rgba(90,25,170,0.20)');
+  disk.addColorStop(0.5, 'rgba(50,12,120,0.09)');
+  disk.addColorStop(1,   'rgba( 0, 0,  0,  0)');
+  ctx.fillStyle = disk;
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.92, 0, Math.PI*2); ctx.fill();
+
+  // ─────────────────────────────────────────────────────────
+  //  放射スパイク：細い棒2層
+  //   Layer A: メイン細棒（個々の棒がはっきり見える）
+  //   Layer B: 先端だけ明るく光る（放射感）
+  // ─────────────────────────────────────────────────────────
+
+  // ── スパイク：2パス（shadowBlurゼロ＝チカチカ根絶） ────────
+  // Pass1: ブルーム（太め・低透明度でふわっとした光）
+  ctx.save();
+  ctx.lineWidth = 3.5;
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < N; i++) {
+    const t     = i / N;
+    const angle = t * Math.PI*2 + rot - Math.PI*0.5;
+    const rgb   = lerpRGB(t);
+    const h     = Math.max(2, _smoothH[i]);
+    const cos   = Math.cos(angle), sin = Math.sin(angle);
+    ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.07)`;
+    ctx.beginPath();
+    ctx.moveTo(cx + cos * R,       cy + sin * R);
+    ctx.lineTo(cx + cos * (R + h), cy + sin * (R + h));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Pass2: コア細線（シャープ・高輝度）
+  ctx.save();
+  ctx.lineWidth = 1.0;
+  ctx.shadowBlur = 0;
+  for (let i = 0; i < N; i++) {
+    const t     = i / N;
+    const angle = t * Math.PI*2 + rot - Math.PI*0.5;
+    const rgb   = lerpRGB(t);
+    const h     = Math.max(2, _smoothH[i]);
+    const cos   = Math.cos(angle), sin = Math.sin(angle);
+    ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.88)`;
+    ctx.beginPath();
+    ctx.moveTo(cx + cos * R,       cy + sin * R);
+    ctx.lineTo(cx + cos * (R + h), cy + sin * (R + h));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Base ring ─────────────────────────────────────────────
+  ctx.save();
+
+  // Layer 1: 1本のarcでグロー → shadowを1回だけ描画、チカチカ根絶
+  ctx.lineWidth   = 2.5;
+  ctx.shadowBlur  = 18;
+  ctx.shadowColor = 'rgba(160,80,255,0.60)';
+  ctx.strokeStyle = 'rgba(140,70,240,0.22)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Layer 2: レインボーカラーリング（shadowなし・arcで描く・40分割）
+  ctx.shadowBlur = 0;
+  ctx.lineWidth  = 1.6;
+  const RS = 40;
+  for (let i = 0; i < RS; i++) {
+    const t1  = i / RS;
+    const a1  = t1 * Math.PI*2 + rot - Math.PI*0.5;
+    const a2  = (i+1) / RS * Math.PI*2 + rot - Math.PI*0.5;
+    const rgb = lerpRGB(t1);
+    ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.42)`;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, a1, a2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Inner reflection（内側の薄い反射） ────────────────────
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.lineWidth   = 0.8;
+  ctx.shadowBlur  = 0;   // shadowなし → チカチカなし
+  for (let i = 0; i < N; i += 2) {
+    const t     = i / N;
+    const angle = t * Math.PI*2 + rot - Math.PI*0.5;
+    const rgb   = lerpRGB(t);
+    const h     = Math.max(1, _smoothH[i] * 0.22);
+    const cos   = Math.cos(angle);
+    const sin   = Math.sin(angle);
+    ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.55)`;
+    ctx.beginPath();
+    ctx.moveTo(cx + cos * R,       cy + sin * R);
+    ctx.lineTo(cx + cos * (R - h), cy + sin * (R - h));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  requestAnimationFrame(draw);
+}
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+}
+window.addEventListener('resize', resize, { passive: true });
+resize();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

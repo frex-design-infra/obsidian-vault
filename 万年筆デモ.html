@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>万年筆日記アプリ - デモ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Klee+One&family=Zen+Kurenaido&family=Hina+Mincho&display=swap" rel="stylesheet">
+
+  <!-- ===== SVGフィルター定義 ===== -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <!-- EF 極細: 鋭くカリカリ、わずかに引っかかり感 -->
+      <filter id="nib-ef" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="2" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.6" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="0.25" result="blur"/>
+        <feColorMatrix in="blur" type="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 38 -11"/>
+      </filter>
+
+      <!-- F 細字: 清潔でシャープ、標準的な万年筆 -->
+      <filter id="nib-f" x="-5%" y="-5%" width="110%" height="110%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.55" result="blur"/>
+        <feColorMatrix in="blur" type="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 22 -6"/>
+      </filter>
+
+      <!-- M 中字: 適度なにじみ、滑らかなインクフロー -->
+      <filter id="nib-m" x="-8%" y="-8%" width="116%" height="116%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="1.3" result="blur"/>
+        <feColorMatrix in="blur" type="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 13 -3"/>
+      </filter>
+
+      <!-- B 太字: インクが豊富で広がる、圧倒的な存在感 -->
+      <filter id="nib-b" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2.8" result="blur"/>
+        <feColorMatrix in="blur" type="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 9 -1.5"/>
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="5" result="noise2"/>
+        <feDisplacementMap in="blur" in2="noise2" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="0.5" result="blur2"/>
+        <feColorMatrix in="blur2" type="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 9 -1.5"/>
+      </filter>
+
+      <!-- 古典インク: にじみ + わずかな有機的ゆらぎ -->
+      <filter id="gall-ink" x="-8%" y="-8%" width="116%" height="116%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="8" result="noise3"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise3" scale="1.5" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="1.0" result="blur"/>
+        <feColorMatrix in="blur" type="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 14 -4"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #2c2c2c;
+      font-family: 'Klee One', serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+      min-height: 100vh;
+    }
+
+    h1 { color: #e8dcc8; font-size: 20px; margin-bottom: 6px; letter-spacing: 4px; font-weight: normal; }
+    .subtitle { color: #999; font-size: 12px; margin-bottom: 30px; letter-spacing: 2px; }
+
+    /* ===== コントロール ===== */
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 16px;
+      justify-content: center; margin-bottom: 20px;
+      width: 100%; max-width: 780px;
+    }
+    .control-group {
+      background: #3a3a3a; border-radius: 12px;
+      padding: 14px 18px; flex: 1; min-width: 180px;
+    }
+    .control-group.full { flex: 0 0 100%; min-width: unset; }
+    .control-group label {
+      display: block; color: #aaa; font-size: 11px;
+      letter-spacing: 2px; margin-bottom: 10px;
+    }
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn {
+      padding: 6px 12px; border: 1px solid #555; border-radius: 20px;
+      background: transparent; color: #ccc; font-size: 12px;
+      cursor: pointer; font-family: 'Klee One', serif; transition: all 0.2s;
+    }
+    .btn:hover { border-color: #aaa; color: #fff; }
+    .btn.active { background: #8b7355; border-color: #8b7355; color: #fff; }
+
+    /* 比較ボタン */
+    .compare-btn {
+      padding: 8px 20px; border: 1px solid #8b7355; border-radius: 20px;
+      background: transparent; color: #c8a87a; font-size: 12px;
+      cursor: pointer; font-family: 'Klee One', serif; transition: all 0.2s;
+      letter-spacing: 2px;
+    }
+    .compare-btn:hover, .compare-btn.active {
+      background: #8b7355; color: #fff;
+    }
+
+    /* ===== 日記ページ（通常） ===== */
+    .diary-wrapper { width: 100%; max-width: 780px; }
+
+    .diary-page {
+      border-radius: 4px; padding: 44px 54px; min-height: 480px;
+      position: relative;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 2px 2px 0 #b8a898 inset;
+      transition: background 0.4s;
+    }
+
+    /* 紙質 */
+    .paper-plain { background: #f5f0e8; }
+    .paper-lined {
+      background: #f5f0e8;
+      background-image: repeating-linear-gradient(transparent, transparent 31px, #c8bfaf 31px, #c8bfaf 32px);
+      background-size: 100% 32px;
+    }
+    .paper-grid {
+      background: #f5f0e8;
+      background-image: linear-gradient(#d4cbbe 1px, transparent 1px), linear-gradient(90deg, #d4cbbe 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .paper-washi {
+      background: #ede5d0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    }
+
+    .diary-date {
+      font-size: 12px; letter-spacing: 3px;
+      margin-bottom: 28px; opacity: 0.4;
+    }
+
+    /* ===== テキスト本体 ===== */
+    .diary-text {
+      line-height: 2.2; transition: color 0.3s;
+    }
+
+    /* フォント */
+    .font-klee .diary-text { font-family: 'Klee One', serif; }
+    .font-zen  .diary-text { font-family: 'Zen Kurenaido', serif; }
+    .font-hina .diary-text { font-family: 'Hina Mincho', serif; }
+
+    /* ===== ペン先ごとのスタイル ===== */
+    /* EF 極細 */
+    .nib-ef .diary-text {
+      font-size: 14px; letter-spacing: 0.5px; font-weight: 300;
+      filter: url(#nib-ef);
+      opacity: 0.88;
+    }
+    /* F 細字 */
+    .nib-f .diary-text {
+      font-size: 17px; letter-spacing: 1.5px; font-weight: 400;
+      filter: url(#nib-f);
+    }
+    /* M 中字 */
+    .nib-m .diary-text {
+      font-size: 20px; letter-spacing: 2px; font-weight: 400;
+      filter: url(#nib-m);
+    }
+    /* B 太字 */
+    .nib-b .diary-text {
+      font-size: 23px; letter-spacing: 2.5px; font-weight: 500;
+      filter: url(#nib-b);
+    }
+
+    /* 古典インク上書き */
+    .ink-gall .diary-text { filter: url(#gall-ink) !important; }
+
+    /* ===== 経年変化（古典インク） ===== */
+    .aging-fresh .diary-text { }
+    .aging-week  .diary-text { filter: url(#gall-ink) sepia(0.15) brightness(0.97) !important; }
+    .aging-month .diary-text { filter: url(#gall-ink) sepia(0.45) brightness(0.90) !important; }
+    .aging-year  .diary-text { filter: url(#gall-ink) sepia(0.78) brightness(0.83) !important; }
+
+    /* ===== 比較ビュー ===== */
+    .compare-view {
+      display: none;
+      width: 100%; max-width: 780px;
+    }
+    .compare-view.show { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .compare-cell {
+      background: #f5f0e8;
+      border-radius: 4px;
+      padding: 20px 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .compare-label {
+      font-size: 10px; letter-spacing: 3px; color: #999;
+      margin-bottom: 10px; text-align: center;
+      font-family: 'Klee One', serif;
+    }
+    .compare-text {
+      line-height: 2.0; font-family: 'Klee One', serif;
+    }
+    /* 比較セルのペン先フィルター */
+    .compare-ef { font-size: 13px; letter-spacing: 0.5px; font-weight: 300; filter: url(#nib-ef); opacity: 0.88; }
+    .compare-f  { font-size: 16px; letter-spacing: 1px;   font-weight: 400; filter: url(#nib-f); }
+    .compare-m  { font-size: 18px; letter-spacing: 1.5px; font-weight: 400; filter: url(#nib-m); }
+    .compare-b  { font-size: 21px; letter-spacing: 2px;   font-weight: 500; filter: url(#nib-b); }
+
+    /* ===== いろしずくパレット ===== */
+    .ink-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+      gap: 8px;
+    }
+    .ink-swatch {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 4px; cursor: pointer; padding: 4px; border-radius: 8px;
+      border: 2px solid transparent; transition: all 0.2s;
+    }
+    .ink-swatch:hover { background: rgba(255,255,255,0.05); }
+    .ink-swatch.active { border-color: #fff; background: rgba(255,255,255,0.1); }
+    .ink-circle {
+      width: 30px; height: 30px; border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4); transition: transform 0.2s;
+    }
+    .ink-swatch:hover .ink-circle { transform: scale(1.1); }
+    .ink-swatch.active .ink-circle { transform: scale(1.15); }
+    .ink-name-jp {
+      color: #bbb; font-size: 9px; text-align: center;
+      letter-spacing: 0.5px; line-height: 1.2;
+    }
+    .ink-swatch.active .ink-name-jp { color: #fff; }
+
+    .ink-selected-info {
+      margin-top: 10px; padding: 8px 12px;
+      background: rgba(0,0,0,0.2); border-radius: 8px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .ink-selected-dot { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.4); flex-shrink: 0; }
+    .ink-selected-text { color: #ddd; font-size: 12px; letter-spacing: 1px; }
+    .ink-selected-sub  { color: #888; font-size: 10px; letter-spacing: 1px; }
+
+    /* ===== 経年変化セクション ===== */
+    .aging-section {
+      background: #3a3a3a; border-radius: 12px;
+      padding: 14px 18px; margin-top: 16px;
+      width: 100%; max-width: 780px;
+    }
+    .aging-section label { display: block; color: #aaa; font-size: 11px; letter-spacing: 2px; margin-bottom: 10px; }
+    .aging-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .aging-label { color: #888; font-size: 11px; }
+
+    .badge {
+      display: inline-block; background: #8b7355; color: #fff;
+      font-size: 9px; padding: 2px 6px; border-radius: 10px;
+      letter-spacing: 1px; margin-left: 4px; vertical-align: middle;
+    }
+
+    /* ペン先説明バー */
+    .nib-desc {
+      margin-top: 10px; padding: 8px 14px;
+      background: rgba(0,0,0,0.15); border-radius: 8px;
+      color: #888; font-size: 11px; letter-spacing: 1px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .nib-desc-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #8b7355; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🖊️ 万年筆日記</h1>
+<p class="subtitle">FOUNTAIN PEN DIARY — DEMO　／　ペン先描画再現</p>
+
+<div class="controls">
+
+  <!-- ペン先 -->
+  <div class="control-group">
+    <label>🖊️ ペン先（字幅）</label>
+    <div class="btn-row">
+      <button class="btn" onclick="setNib('ef')">EF 極細</button>
+      <button class="btn active" onclick="setNib('f')">F 細字</button>
+      <button class="btn" onclick="setNib('m')">M 中字</button>
+      <button class="btn" onclick="setNib('b')">B 太字</button>
+    </div>
+    <div class="nib-desc" id="nibDesc">
+      <div class="nib-desc-dot"></div>
+      <span id="nibDescText">F 細字 — 清潔でシャープ。手紙・日記に最適な標準的な万年筆の書き味</span>
+    </div>
+  </div>
+
+  <!-- フォント -->
+  <div class="control-group">
+    <label>✒️ 万年筆スタイル</label>
+    <div class="btn-row">
+      <button class="btn active" onclick="setFont('klee')">Klee（やわらか）</button>
+      <button class="btn" onclick="setFont('zen')">禅（軽やか）</button>
+      <button class="btn" onclick="setFont('hina')">雛（クラシカル）</button>
+    </div>
+  </div>
+
+  <!-- インク種 -->
+  <div class="control-group">
+    <label>💧 インク種</label>
+    <div class="btn-row">
+      <button class="btn active" onclick="setInkType('dye')">染料（にじみあり）</button>
+      <button class="btn" onclick="setInkType('pigment')">顔料（くっきり）</button>
+      <button class="btn" onclick="setInkType('gall')">古典 <span class="badge">経年変化</span></button>
+    </div>
+  </div>
+
+  <!-- 紙質 -->
+  <div class="control-group">
+    <label>📄 紙質</label>
+    <div class="btn-row">
+      <button class="btn active" onclick="setPaper('plain')">無地</button>
+      <button class="btn" onclick="setPaper('lined')">横罫</button>
+      <button class="btn" onclick="setPaper('grid')">方眼</button>
+      <button class="btn" onclick="setPaper('washi')">和紙</button>
+    </div>
+  </div>
+
+  <!-- 比較ボタン -->
+  <div class="control-group" style="display:flex; align-items:center; justify-content:center; min-width:160px;">
+    <button class="compare-btn" id="compareBtn" onclick="toggleCompare()">
+      ◫ ペン先 4種を比較表示
+    </button>
+  </div>
+
+  <!-- いろしずく24色 -->
+  <div class="control-group full">
+    <label>🎨 インクカラー　— PILOT いろしずく 24色（近似色）</label>
+    <div class="ink-palette" id="inkPalette"></div>
+    <div class="ink-selected-info">
+      <div class="ink-selected-dot" id="selectedDot"></div>
+      <div>
+        <div class="ink-selected-text" id="selectedName"></div>
+        <div class="ink-selected-sub" id="selectedSub"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 通常の日記ビュー -->
+<div class="diary-wrapper" id="singleView">
+  <div id="diaryPage" class="diary-page paper-plain nib-f font-klee">
+    <div class="diary-date">2026年 4月 18日　土曜日　☁️ くもり</div>
+    <div class="diary-text" id="diaryText">
+      今日は少し曇り空だったけれど、<br>
+      朝のコーヒーがいつもより美味しく感じた。<br>
+      窓の外を眺めながら、<br>
+      ゆっくりとページをめくる時間が好きだ。<br><br>
+      万年筆のインクが紙に滲む瞬間、<br>
+      何かが始まるような気がする。<br>
+      言葉は不思議なもので、<br>
+      書いて初めて自分のものになる気がした。
+    </div>
+  </div>
+</div>
+
+<!-- 比較ビュー（4分割） -->
+<div class="compare-view" id="compareView">
+  <div class="compare-cell paper-plain">
+    <div class="compare-label">EF 極細 — 細雪</div>
+    <div class="compare-text compare-ef" id="cef">
+      今日は少し曇り空だったけれど、<br>
+      朝のコーヒーがいつもより<br>
+      美味しく感じた。
+    </div>
+  </div>
+  <div class="compare-cell paper-plain">
+    <div class="compare-label">F 細字 — 春霞</div>
+    <div class="compare-text compare-f" id="cf">
+      今日は少し曇り空だったけれど、<br>
+      朝のコーヒーがいつもより<br>
+      美味しく感じた。
+    </div>
+  </div>
+  <div class="compare-cell paper-plain">
+    <div class="compare-label">M 中字 — 月影</div>
+    <div class="compare-text compare-m" id="cm">
+      今日は少し曇り空だったけれど、<br>
+      朝のコーヒーがいつもより<br>
+      美味しく感じた。
+    </div>
+  </div>
+  <div class="compare-cell paper-plain">
+    <div class="compare-label">B 太字 — 黒松</div>
+    <div class="compare-text compare-b" id="cb">
+      今日は少し曇り空だったけれど、<br>
+      朝のコーヒーがいつもより<br>
+      美味しく感じた。
+    </div>
+  </div>
+</div>
+
+<!-- 古典インク経年変化 -->
+<div class="aging-section" id="agingSection" style="display:none">
+  <label>⏳ 古典インク経年変化（書いた時からの経過）</label>
+  <div class="aging-row">
+    <span class="aging-label">書いた直後 →</span>
+    <button class="btn active" id="age-fresh" onclick="setAging('fresh')">今日</button>
+    <button class="btn" id="age-week"  onclick="setAging('week')">1週間後</button>
+    <button class="btn" id="age-month" onclick="setAging('month')">1ヶ月後</button>
+    <button class="btn" id="age-year"  onclick="setAging('year')">1年後</button>
+    <span class="aging-label">→ 深みを増す</span>
+  </div>
+</div>
+
+<script>
+  // ===== PILOT いろしずく 24色 =====
+  const INKS = [
+    { id:'asagao',     jp:'朝顔',     en:'Asa-gao',          sub:'Morning Glory',    hex:'#4a3f8a' },
+    { id:'ajisai',     jp:'紫陽花',   en:'Ajisai',           sub:'Hydrangea',        hex:'#8e6fa0' },
+    { id:'tsuyukusa',  jp:'露草',     en:'Tsuyu-kusa',       sub:'Dayflower',        hex:'#3a72c0' },
+    { id:'konpeki',    jp:'紺碧',     en:'Kon-peki',         sub:'Azure',            hex:'#006fa8' },
+    { id:'amairo',     jp:'天色',     en:'Ama-iro',          sub:'Sky Blue',         hex:'#68b4d8' },
+    { id:'tsukiyo',    jp:'月夜',     en:'Tsuki-yo',         sub:'Moonlit Night',    hex:'#005f6e' },
+    { id:'kujaku',     jp:'孔雀',     en:'Ku-jaku',          sub:'Peacock',          hex:'#007878' },
+    { id:'shinkai',    jp:'深海',     en:'Shin-kai',         sub:'Deep Sea',         hex:'#152b5e' },
+    { id:'syoro',      jp:'松露',     en:'Syo-ro',           sub:'Pine Resin',       hex:'#7a8830' },
+    { id:'shinryoku',  jp:'新緑',     en:'Shin-ryoku',       sub:'Fresh Green',      hex:'#2e7a30' },
+    { id:'chikurin',   jp:'竹林',     en:'Chiku-rin',        sub:'Bamboo Grove',     hex:'#7a9038' },
+    { id:'fuyusyogun', jp:'冬将軍',   en:'Fuyu-syogun',      sub:'Winter General',   hex:'#4a6880' },
+    { id:'kirisame',   jp:'霧雨',     en:'Kiri-same',        sub:'Drizzle',          hex:'#7a8fa0' },
+    { id:'takesumi',   jp:'竹墨',     en:'Take-sumi',        sub:'Bamboo Charcoal',  hex:'#252830' },
+    { id:'tsutsuji',   jp:'躑躅',     en:'Tsutsuji',         sub:'Azalea',           hex:'#c03060' },
+    { id:'kosumosu',   jp:'コスモス', en:'Kosumosu',         sub:'Cosmos',           hex:'#cc7095' },
+    { id:'momiji',     jp:'紅葉',     en:'Momiji',           sub:'Autumn Leaves',    hex:'#b82810' },
+    { id:'murasakis',  jp:'紫式部',   en:'Murasaki-shikibu', sub:'Lady Murasaki',    hex:'#6a3090' },
+    { id:'yamabudo',   jp:'山葡萄',   en:'Yama-budo',        sub:'Wild Grape',       hex:'#641040' },
+    { id:'yuyake',     jp:'夕焼け',   en:'Yu-yake',          sub:'Sunset',           hex:'#d85020' },
+    { id:'fuyugaki',   jp:'冬柿',     en:'Fuyu-gaki',        sub:'Winter Persimmon', hex:'#c06820' },
+    { id:'inaho',      jp:'稲穂',     en:'Ina-ho',           sub:'Rice Ear',         hex:'#b89020' },
+    { id:'tsukushi',   jp:'筑紫',     en:'Tsukushi',         sub:'Horsetail',        hex:'#806040' },
+    { id:'yamaguri',   jp:'山栗',     en:'Yama-guri',        sub:'Mountain Chestnut',hex:'#6a4828' },
+  ];
+
+  // パレット生成
+  const palette = document.getElementById('inkPalette');
+  let currentColor = INKS[5].hex; // 月夜デフォルト
+
+  INKS.forEach((ink, i) => {
+    const el = document.createElement('div');
+    el.className = 'ink-swatch' + (i === 5 ? ' active' : '');
+    el.innerHTML = `<div class="ink-circle" style="background:${ink.hex}"></div><div class="ink-name-jp">${ink.jp}</div>`;
+    el.onclick = () => selectInk(ink, el);
+    palette.appendChild(el);
+  });
+
+  // 初期色セット
+  applyColor(INKS[5]);
+
+  function applyColor(ink) {
+    currentColor = ink.hex;
+    document.getElementById('diaryText').style.color = ink.hex;
+    ['cef','cf','cm','cb'].forEach(id => { document.getElementById(id).style.color = ink.hex; });
+    document.getElementById('selectedDot').style.background = ink.hex;
+    document.getElementById('selectedName').textContent = `${ink.jp}（${ink.en.toLowerCase()}）`;
+    document.getElementById('selectedSub').textContent = `${ink.en} — ${ink.sub}`;
+  }
+
+  function selectInk(ink, el) {
+    document.querySelectorAll('.ink-swatch').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    applyColor(ink);
+  }
+
+  // ===== ペン先説明 =====
+  const NIB_DESC = {
+    ef: 'EF 極細 — カリカリとした引っかかり感。細く鋭い線。手帳・細かい記録向き',
+    f:  'F 細字 — 清潔でシャープ。手紙・日記に最適な標準的な万年筆の書き味',
+    m:  'M 中字 — 適度なにじみと滑らかさ。インクフローが豊かで書きやすい',
+    b:  'B 太字 — 豊富なインクが広がる。存在感ある太い線。滑らかで贅沢な書き味',
+  };
+
+  // ===== コントロール =====
+  const page = document.getElementById('diaryPage');
+  const agingSection = document.getElementById('agingSection');
+  let currentAging = 'fresh';
+  let currentInkType = 'dye';
+  let compareMode = false;
+
+  function clearClass(prefix) {
+    [...page.classList].filter(c => c.startsWith(prefix)).forEach(c => page.classList.remove(c));
+  }
+
+  function setNib(v) {
+    clearClass('nib-');
+    page.classList.add('nib-' + v);
+    document.getElementById('nibDescText').textContent = NIB_DESC[v];
+    highlightBtn('setNib', v);
+  }
+
+  function setFont(v) {
+    clearClass('font-');
+    page.classList.add('font-' + v);
+    // 比較セルにも適用
+    ['cef','cf','cm','cb'].forEach(id => {
+      const el = document.getElementById(id);
+      el.style.fontFamily = v === 'klee' ? "'Klee One', serif" : v === 'zen' ? "'Zen Kurenaido', serif" : "'Hina Mincho', serif";
+    });
+    highlightBtn('setFont', v);
+  }
+
+  function setInkType(v) {
+    currentInkType = v;
+    page.classList.remove('ink-gall', 'aging-fresh', 'aging-week', 'aging-month', 'aging-year');
+    if (v === 'gall') {
+      page.classList.add('ink-gall', 'aging-' + currentAging);
+      agingSection.style.display = 'block';
+    } else {
+      agingSection.style.display = 'none';
+    }
+    highlightBtn('setInkType', v);
+  }
+
+  function setPaper(v) {
+    clearClass('paper-');
+    page.classList.add('paper-' + v);
+    // 比較セルにも適用
+    document.querySelectorAll('.compare-cell').forEach(cell => {
+      cell.className = 'compare-cell paper-' + v;
+    });
+    highlightBtn('setPaper', v);
+  }
+
+  function setAging(v) {
+    currentAging = v;
+    page.classList.remove('aging-fresh','aging-week','aging-month','aging-year');
+    page.classList.add('aging-' + v);
+    ['fresh','week','month','year'].forEach(a => {
+      document.getElementById('age-' + a).classList.toggle('active', a === v);
+    });
+  }
+
+  function toggleCompare() {
+    compareMode = !compareMode;
+    document.getElementById('singleView').style.display = compareMode ? 'none' : 'block';
+    document.getElementById('compareView').classList.toggle('show', compareMode);
+    document.getElementById('compareBtn').classList.toggle('active', compareMode);
+    document.getElementById('compareBtn').textContent = compareMode ? '✕ 比較を閉じる' : '◫ ペン先 4種を比較表示';
+  }
+
+  function highlightBtn(fnName, val) {
+    document.querySelectorAll('.btn').forEach(b => {
+      const fn = b.getAttribute('onclick') || '';
+      if (fn.includes(fnName))
+        b.classList.toggle('active', fn.includes("'" + val + "'"));
+    });
+  }
+</script>
+</body>
+</html>

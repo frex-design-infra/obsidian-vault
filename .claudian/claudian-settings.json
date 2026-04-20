@@ -1,0 +1,68 @@
+{
+  "userName": "",
+  "permissionMode": "normal",
+  "model": "sonnet",
+  "thinkingBudget": "low",
+  "effortLevel": "medium",
+  "serviceTier": "default",
+  "enableAutoTitleGeneration": true,
+  "titleGenerationModel": "sonnet",
+  "excludedTags": [],
+  "mediaFolder": "",
+  "systemPrompt": "私は秋田県にある株式会社フレックスデザインの代表取締役です。\n私の会社、は、橋梁、トンネル、道路附属物（照明・標識）など、道路インフラ施設の点検・調査・設計を主に行う2022年設立の技術専門企業です。東北地方を中心に、自治体や国土交通省の案件で、高度な技術と安全管理のもと、インフラの長寿命化と安全確保をワンストップでサポートしています。\n\n主な特徴・事業内容:\nインフラ点検の専門企業: 橋梁、トンネル、道路標識・照明などの「点検・診断・調査」に特化。\n専門有資格者が多数在籍: 道路橋点検士、河川点検士、コンクリート診断士、RCCM等の資格保有者が、安全かつ高精度な点検を実施。\nワンストップサポート: 点検業務から、国交省等の基準に沿った調書作成、設計業務までを一貫して受託。\n営業エリア: 秋田県を拠点に、東北全域を行なっています。",
+  "persistentExternalContextPaths": [],
+  "sharedEnvironmentVariables": "",
+  "envSnippets": [],
+  "customContextLimits": {},
+  "keyboardNavigation": {
+    "scrollUpKey": "w",
+    "scrollDownKey": "s",
+    "focusInputKey": "i"
+  },
+  "locale": "ja",
+  "providerConfigs": {
+    "claude": {
+      "safeMode": "acceptEdits",
+      "cliPath": "",
+      "cliPathsByHost": {},
+      "loadUserSettings": true,
+      "enableChrome": false,
+      "enableBangBash": false,
+      "enableOpus1M": false,
+      "enableSonnet1M": false,
+      "lastModel": "sonnet",
+      "environmentVariables": "",
+      "environmentHash": ""
+    },
+    "codex": {
+      "enabled": false,
+      "safeMode": "workspace-write",
+      "cliPath": "",
+      "cliPathsByHost": {},
+      "reasoningSummary": "detailed",
+      "environmentVariables": "",
+      "environmentHash": "",
+      "installationMethodsByHost": {
+        "FRexDesign-Inc.local": "native-windows"
+      },
+      "wslDistroOverridesByHost": {}
+    }
+  },
+  "settingsProvider": "claude",
+  "savedProviderModel": {
+    "claude": "sonnet"
+  },
+  "savedProviderEffort": {
+    "claude": "medium"
+  },
+  "savedProviderServiceTier": {},
+  "savedProviderThinkingBudget": {
+    "claude": "low"
+  },
+  "lastCustomModel": "",
+  "maxTabs": 5,
+  "tabBarPosition": "input",
+  "enableAutoScroll": true,
+  "openInMainTab": true,
+  "hiddenProviderCommands": {}
+}

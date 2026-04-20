@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Thinq — 心の海</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #090812;
+      min-height: 100vh;
+      font-family: -apple-system, 'Hiragino Sans', 'Helvetica Neue', sans-serif;
+      color: #e8e8f0;
+      display: flex; justify-content: center;
+    }
+
+    .phone {
+      width: 100%; max-width: 390px;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      padding: 52px 28px 16px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(9,8,18,0.97) 75%, transparent);
+    }
+    .logo {
+      font-size: 12px; font-weight: 200; letter-spacing: 0.6em;
+      color: #e8e4ff;
+      text-shadow: 0 0 24px rgba(200,180,255,0.35);
+    }
+    .header-sub {
+      font-size: 10px; font-weight: 300; letter-spacing: 0.14em;
+      color: #7870a8;
+    }
+
+    .feed {
+      flex: 1; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 8px;
+    }
+    .feed::-webkit-scrollbar { display: none; }
+
+    .wave-item { cursor: pointer; transition: background 0.25s; }
+    .wave-item:active { background: rgba(255,255,255,0.02); }
+
+    .wave-canvas-wrap {
+      height: 120px; overflow: hidden; position: relative;
+    }
+    .wave-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+
+    /* 左右＋上下フェード */
+    .wave-canvas-wrap::before,
+    .wave-canvas-wrap::after {
+      content: ''; position: absolute; top:0; bottom:0; width:36px;
+      pointer-events:none; z-index:2;
+    }
+    .wave-canvas-wrap::before { left:0;  background:linear-gradient(to right,#090812,transparent); }
+    .wave-canvas-wrap::after  { right:0; background:linear-gradient(to left, #090812,transparent); }
+    .fade-top, .fade-bot {
+      position:absolute; left:0; right:0; height:28px;
+      pointer-events:none; z-index:3;
+    }
+    .fade-top { top:0;    background:linear-gradient(to bottom,#090812,transparent); }
+    .fade-bot { bottom:0; background:linear-gradient(to top,  #090812,transparent); }
+
+    .wave-meta {
+      display:flex; justify-content:space-between;
+      padding: 4px 26px 13px;
+    }
+    .wave-time  { font-size:11px; font-weight:300; color:#7870a8; letter-spacing:0.04em; }
+    .wave-views { font-size:11px; font-weight:300; color:#7870a8; letter-spacing:0.05em; }
+    .divider { height:1px; margin:0 24px; background:rgba(255,255,255,0.04); }
+
+    .nav {
+      position:sticky; bottom:0; z-index:100;
+      display:flex;
+      border-top:1px solid rgba(255,255,255,0.05);
+      background:rgba(9,8,18,0.95);
+      padding-bottom:max(env(safe-area-inset-bottom),8px);
+    }
+    .nav-item {
+      flex:1; padding:13px 0 10px;
+      display:flex; flex-direction:column;
+      align-items:center; gap:5px;
+      cursor:pointer; opacity:0.22; transition:opacity 0.3s;
+    }
+    .nav-item.active { opacity:1; }
+    .nav-item:hover  { opacity:0.5; }
+    .nav-icon  { font-size:15px; line-height:1; }
+    .nav-label { font-size:10px; font-weight:300; letter-spacing:0.06em; color:#9090b8; }
+    .nav-item.active .nav-label { color:#b090e0; }
+  </style>
+</head>
+<body>
+<div class="phone">
+  <div class="header">
+    <div class="logo">thinq</div>
+    <div class="header-sub">心の海</div>
+  </div>
+  <div class="feed" id="feed"></div>
+  <div class="nav">
+    <div class="nav-item active">
+      <div class="nav-icon">🌊</div>
+      <div class="nav-label">タイムライン</div>
+    </div>
+    <div class="nav-item" onclick="location.href='Thinq 書く画面.html'">
+      <div class="nav-icon">✏</div>
+      <div class="nav-label">書く</div>
+    </div>
+    <div class="nav-item" onclick="location.href='Thinq 自分の波形履歴.html'">
+      <div class="nav-icon">〜</div>
+      <div class="nav-label">自分の波</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── カラーゾーン ────────────────────────────────────────
+const ZONES = [
+  {t:0.00,rgb:[205,52,16]},{t:0.07,rgb:[222,18,0]},
+  {t:0.14,rgb:[255,55,10]},{t:0.22,rgb:[222,38,118]},
+  {t:0.30,rgb:[182,46,162]},{t:0.38,rgb:[38,74,222]},
+  {t:0.47,rgb:[48,48,192]},{t:0.53,rgb:[70,66,128]},
+  {t:0.58,rgb:[0,162,200]},{t:0.66,rgb:[0,205,158]},
+  {t:0.73,rgb:[62,212,70]},{t:0.81,rgb:[168,228,24]},
+  {t:0.88,rgb:[252,198,0]},{t:0.94,rgb:[255,112,20]},
+  {t:1.00,rgb:[205,52,16]},
+];
+function lerpRGB(t) {
+  t=((t%1)+1)%1;
+  for(let i=0;i<ZONES.length-1;i++){
+    const a=ZONES[i],b=ZONES[i+1];
+    if(t>=a.t&&t<=b.t){
+      const f=(t-a.t)/(b.t-a.t);
+      return a.rgb.map((v,j)=>Math.round(v+(b.rgb[j]-v)*f));
+    }
+  }
+  return ZONES[ZONES.length-1].rgb;
+}
+
+// ─── 投稿データ ──────────────────────────────────────────
+const posts = [
+  {id:1, time:'4分前',    views:12,   text:'疲れた',
+   colorType:'single', colors:[[70,66,200]],
+   freq:1.6, amp:0.30, speed:0.32, phase:0.0},
+  {id:2, time:'11分前',   views:89,   text:'。',
+   colorType:'single', colors:[[38,74,200]],
+   freq:1.2, amp:0.20, speed:0.22, phase:1.5},
+  {id:3, time:'23分前',   views:34,   text:'はあ',
+   colorType:'single', colors:[[80,70,160]],
+   freq:1.4, amp:0.24, speed:0.28, phase:2.2},
+  {id:4, time:'31分前',   views:256,  text:'なんかいいことあった気がする',
+   colorType:'single', colors:[[62,212,70]],
+   freq:3.0, amp:0.44, speed:0.70, phase:0.3},
+  {id:5, time:'45分前',   views:67,   text:'眠い',
+   colorType:'single', colors:[[50,45,120]],
+   freq:1.2, amp:0.18, speed:0.20, phase:3.0},
+  {id:6, time:'58分前',   views:445,  text:'ちょっと…',
+   colorType:'single', colors:[[182,46,162]],
+   freq:5.0, amp:0.38, speed:0.85, phase:0.8},
+  {id:7, time:'1時間前',  views:178,  text:'草',
+   colorType:'single', colors:[[252,198,0]],
+   freq:4.2, amp:0.48, speed:1.00, phase:1.2},
+  {id:8, time:'1時間前',  views:91,   text:'しんどい',
+   colorType:'single', colors:[[80,70,140]],
+   freq:1.8, amp:0.26, speed:0.26, phase:0.6},
+  {id:9, time:'2時間前',  views:621,  text:'上司にまた言われた。もうやだ。',
+   colorType:'dual', colors:[[222,38,60],[182,46,162]],
+   freq:6.0, amp:0.58, speed:1.20, phase:0.4},
+  {id:10,time:'2時間前',  views:334,  text:'不安で昨日全然眠れなかった。今日もずっとしんどい。',
+   colorType:'dual', colors:[[182,46,162],[38,74,222]],
+   freq:6.5, amp:0.52, speed:1.05, phase:1.1},
+  {id:11,time:'3時間前',  views:512,  text:'ランチが美味しかった。小さな幸せって大事だな。',
+   colorType:'dual', colors:[[62,212,70],[0,205,158]],
+   freq:2.8, amp:0.38, speed:0.62, phase:1.8},
+  {id:12,time:'3時間前',  views:289,  text:'明日から新プロジェクト始まる。不安だけどちょっとワクワクしてる。',
+   colorType:'dual', colors:[[252,198,0],[182,46,162]],
+   freq:4.0, amp:0.52, speed:0.82, phase:0.2},
+  {id:13,time:'4時間前',  views:403,  text:'今日は風が気持ちよくて、なんか穏やかな気持ちだった。',
+   colorType:'dual', colors:[[0,205,158],[0,180,200]],
+   freq:2.0, amp:0.30, speed:0.48, phase:2.2},
+  {id:14,time:'4時間前',  views:847,  text:'久しぶりに親に電話したら泣いてしまった。なんでだろ。',
+   colorType:'dual', colors:[[38,74,222],[0,205,158]],
+   freq:2.6, amp:0.36, speed:0.55, phase:0.9},
+  {id:15,time:'5時間前',  views:1203, text:'今日は仕事が終わって帰り道、ふと空を見上げたら、思ったより綺麗な夕焼けで、少し泣きそうになった。',
+   colorType:'spectrum', colors:null,
+   freq:2.4, amp:0.46, speed:0.60, phase:0.0},
+  {id:16,time:'6時間前',  views:734,  text:'最近ずっとモヤモヤしてる。何が嫌なのかもわからなくて、誰かに話したいけど何を話せばいいかもわからない。',
+   colorType:'spectrum', colors:null,
+   freq:3.0, amp:0.38, speed:0.50, phase:1.4},
+  {id:17,time:'7時間前',  views:2341, text:'転職が決まった。怖くて怖くて全然眠れなかった日々だったけど、今日内定の電話がきた瞬間、なぜか泣いた。',
+   colorType:'spectrum', colors:null,
+   freq:3.8, amp:0.54, speed:0.90, phase:0.6},
+  {id:18,time:'8時間前',  views:567,  text:'また同じ夢を見た。毎回同じ場所で、毎回同じ後悔をする。',
+   colorType:'spectrum', colors:null,
+   freq:2.8, amp:0.42, speed:0.52, phase:2.0},
+  {id:19,time:'9時間前',  views:445,  text:'友達と久しぶりに会って、いっぱい笑った。帰り道、あーこういう時間が一番大事だなって思った。',
+   colorType:'spectrum', colors:null,
+   freq:3.4, amp:0.46, speed:0.78, phase:1.0},
+  {id:20,time:'10時間前', views:223,  text:'おやすみ',
+   colorType:'single', colors:[[0,180,200]],
+   freq:1.6, amp:0.22, speed:0.30, phase:0.5},
+];
+
+// ─── 色取得 ──────────────────────────────────────────────
+function getColor(post, t) {
+  if (post.colorType==='spectrum') {
+    return lerpRGB(t + post.phase*0.05);
+  } else if (post.colorType==='dual') {
+    const c1=post.colors[0],c2=post.colors[1];
+    return c1.map((v,i)=>Math.round(v+(c2[i]-v)*t));
+  } else {
+    return post.colors[0];
+  }
+}
+
+// ─── Feed構築 ────────────────────────────────────────────
+const feed = document.getElementById('feed');
+const canvasItems = [];
+
+posts.forEach(post => {
+  const item = document.createElement('div');
+  item.className = 'wave-item';
+  const cid = `wc${post.id}`;
+  item.innerHTML = `
+    <div class="wave-canvas-wrap">
+      <canvas id="${cid}"></canvas>
+      <div class="fade-top"></div>
+      <div class="fade-bot"></div>
+    </div>
+    <div class="wave-meta">
+      <span class="wave-time">${post.time}</span>
+      <span class="wave-views">👁 ${post.views.toLocaleString()}</span>
+    </div>
+    <div class="divider"></div>
+  `;
+  item.addEventListener('click', () => {
+    localStorage.setItem('thinq_post', JSON.stringify(post));
+    location.href = 'Thinq 日記詳細.html';
+  });
+  feed.appendChild(item);
+});
+
+requestAnimationFrame(() => {
+  posts.forEach(post => {
+    const canvas = document.getElementById(`wc${post.id}`);
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio||1;
+    const W   = canvas.parentElement.offsetWidth;
+    const H   = 120;
+    canvas.width  = W*dpr;
+    canvas.height = H*dpr;
+    canvasItems.push({ canvas, ctx:canvas.getContext('2d'), post, dpr, W, H });
+  });
+});
+
+// ─── リボン波描画 ────────────────────────────────────────
+function drawRibbon(ctx, post, W, H, time) {
+  const { freq, amp, speed, phase } = post;
+  const CY   = H / 2;
+  const N    = 220;
+  const ph   = time * speed * Math.PI * 2;
+
+  // 波のY中心位置
+  function waveCenter(x) {
+    const t = x / W;
+    return CY
+      + Math.sin(t * freq * Math.PI * 2 + ph + phase)              * H * amp * 0.42
+      + Math.sin(t * freq * Math.PI * 3.6 + ph * 1.25 + phase + 1) * H * amp * 0.16
+      + Math.sin(t * freq * Math.PI * 0.8 + ph * 0.5  + phase + 2) * H * amp * 0.10;
+  }
+
+  // リボンの太さ（振幅が大きい部分ほど太い）
+  function ribbonThick(x) {
+    const t   = x / W;
+    const base = H * amp * 0.20;
+    const mod  = Math.sin(t * freq * Math.PI * 2 + ph + phase + Math.PI * 0.5);
+    return base * (0.5 + 1.1 * Math.abs(mod));
+  }
+
+  // ── Layer 1: ソフトグロー（一番広い） ───────────────────
+  for (let pass = 0; pass < 3; pass++) {
+    const glowW   = [18, 10, 5][pass];
+    const glowAlpha = [0.022, 0.040, 0.060][pass];
+    ctx.save();
+    ctx.lineWidth = glowW;
+    ctx.lineCap   = 'round';
+    for (let i = 0; i < N; i++) {
+      const x1 = i * W / N;
+      const x2 = (i+1) * W / N;
+      const t  = i / N;
+      const [r,g,b] = getColor(post, t);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${glowAlpha})`;
+      ctx.beginPath();
+      ctx.moveTo(x1, waveCenter(x1));
+      ctx.lineTo(x2, waveCenter(x2));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ── Layer 2: リボン本体（塗りつぶし帯） ─────────────────
+  // 上エッジと下エッジを計算して帯を塗る
+  const topPts = [], botPts = [];
+  for (let i = 0; i <= N; i++) {
+    const x = i * W / N;
+    const cy = waveCenter(x);
+    const hw = ribbonThick(x);
+    topPts.push({ x, y: cy - hw });
+    botPts.push({ x, y: cy + hw });
+  }
+
+  // 横方向グラデーション
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  const steps = 12;
+  for (let s = 0; s <= steps; s++) {
+    const t   = s / steps;
+    const [r,g,b] = getColor(post, t);
+    grad.addColorStop(t, `rgba(${r},${g},${b},0.18)`);
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(topPts[0].x, topPts[0].y);
+  for (let i = 1; i <= N; i++) ctx.lineTo(topPts[i].x, topPts[i].y);
+  for (let i = N; i >= 0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.restore();
+
+  // ── Layer 3: リボンの上エッジライン（明るい） ──────────
+  ctx.save();
+  ctx.lineWidth = 1.2;
+  ctx.globalAlpha = 0.88;
+  for (let i = 0; i < N; i++) {
+    const t   = i / N;
+    const [r,g,b] = getColor(post, t);
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.85)`;
+    ctx.beginPath();
+    ctx.moveTo(topPts[i].x, topPts[i].y);
+    ctx.lineTo(topPts[i+1].x, topPts[i+1].y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Layer 4: リボンの下エッジライン（暗め） ────────────
+  ctx.save();
+  ctx.lineWidth = 0.7;
+  ctx.globalAlpha = 0.45;
+  for (let i = 0; i < N; i++) {
+    const t   = i / N;
+    const [r,g,b] = getColor(post, t);
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.50)`;
+    ctx.beginPath();
+    ctx.moveTo(botPts[i].x, botPts[i].y);
+    ctx.lineTo(botPts[i+1].x, botPts[i+1].y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+}
+
+// ─── レンダーループ ──────────────────────────────────────
+function draw(ts) {
+  const time = ts * 0.001 * 0.22; // 全体速度
+  canvasItems.forEach(({ canvas, ctx, post, dpr, W, H }) => {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    drawRibbon(ctx, post, W, H, time);
+  });
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Thinq — あなたの波</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #090812;
+      min-height: 100vh;
+      font-family: -apple-system, 'Hiragino Sans', 'Helvetica Neue', sans-serif;
+      color: #e8e8f0;
+      display: flex; justify-content: center;
+    }
+
+    .phone {
+      width: 100%; max-width: 390px;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .header {
+      position: sticky; top: 0; z-index: 100;
+      padding: 52px 28px 14px;
+      display: flex; align-items: flex-end; justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(9,8,18,0.97) 75%, transparent);
+    }
+    .logo {
+      font-size: 12px; font-weight: 200; letter-spacing: 0.6em;
+      color: #e8e4ff;
+      text-shadow: 0 0 24px rgba(200,180,255,0.35);
+    }
+    .header-title {
+      font-size: 11px; font-weight: 300; letter-spacing: 0.16em;
+      color: #7870a8;
+      font-family: 'Hiragino Mincho ProN','YuMincho',serif;
+    }
+
+    /* ── My Ring section ────────────────────── */
+    .ring-section {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 0 0;
+    }
+
+    #ringCanvas {
+      display: block;
+    }
+
+    /* 育ち具合ラベル */
+    .growth-label {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+      margin-top: 24px; /* canvasの中心補正 */
+    }
+    .growth-days {
+      font-size: 11px; font-weight: 200;
+      letter-spacing: 0.18em; color: rgba(160,140,220,0.50);
+      font-family: 'Hiragino Mincho ProN','YuMincho',serif;
+      display: block; margin-bottom: 2px;
+    }
+    .growth-count {
+      font-size: 22px; font-weight: 100;
+      letter-spacing: 0.06em; color: rgba(220,210,255,0.75);
+      display: block;
+    }
+    .growth-unit {
+      font-size: 10px; font-weight: 200;
+      letter-spacing: 0.20em; color: rgba(160,140,220,0.45);
+      display: block; margin-top: 2px;
+      font-family: 'Hiragino Mincho ProN','YuMincho',serif;
+    }
+
+    /* 感情割合バー */
+    .emotion-bars {
+      width: 100%;
+      padding: 4px 32px 20px;
+    }
+    .emotion-bar-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 9px;
+    }
+    .emo-label {
+      font-size: 10px; font-weight: 300;
+      letter-spacing: 0.06em; color: #7870a8;
+      width: 68px; text-align: right; flex-shrink: 0;
+      font-family: 'Hiragino Mincho ProN','YuMincho',serif;
+    }
+    .emo-track {
+      flex: 1; height: 2px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 1px; overflow: hidden;
+    }
+    .emo-fill {
+      height: 100%; border-radius: 1px;
+      transition: width 1.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .emo-pct {
+      font-size: 10px; font-weight: 300;
+      color: #6868a8; letter-spacing: 0.04em;
+      width: 28px; text-align: right; flex-shrink: 0;
+    }
+
+    .section-divider {
+      height: 1px; margin: 4px 24px 0;
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* ── Scroll ─────────────────────────────── */
+    .scroll {
+      flex: 1; overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 0 16px;
+    }
+    .scroll::-webkit-scrollbar { display: none; }
+
+    /* ── Month group ────────────────────────── */
+    .month-group { margin-bottom: 4px; }
+
+    .month-label {
+      padding: 18px 24px 8px;
+      font-size: 11px; font-weight: 300;
+      letter-spacing: 0.14em; color: #7870a8;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .month-label::after {
+      content: ''; flex: 1; height: 1px;
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* ── Wave row ───────────────────────────── */
+    .wave-row {
+      display: flex; align-items: center;
+      padding: 4px 24px; cursor: pointer;
+      transition: background 0.2s; gap: 14px;
+    }
+    .wave-row:active { background: rgba(255,255,255,0.015); }
+
+    .row-date {
+      font-size: 13px; font-weight: 300;
+      color: #6868a8; letter-spacing: 0.04em;
+      min-width: 28px;
+      font-family: 'Hiragino Mincho ProN','YuMincho',serif;
+    }
+
+    .row-canvas-wrap {
+      flex: 1; height: 44px; overflow: hidden; position: relative;
+    }
+    .row-canvas-wrap::before, .row-canvas-wrap::after {
+      content: ''; position: absolute;
+      top: 0; bottom: 0; width: 12px; z-index: 2; pointer-events: none;
+    }
+    .row-canvas-wrap::before { left:0; background: linear-gradient(to right,#090812,transparent); }
+    .row-canvas-wrap::after  { right:0; background: linear-gradient(to left, #090812,transparent); }
+    .row-canvas-wrap canvas  { display: block; width: 100%; height: 100%; }
+
+    .row-meta {
+      display: flex; flex-direction: column;
+      align-items: flex-end; gap: 3px; min-width: 52px;
+    }
+    .row-label { font-size: 10px; font-weight: 300; letter-spacing: 0.06em; color: #6868a8; }
+    .row-time  { font-size: 10px; font-weight: 300; letter-spacing: 0.04em; color: #7870a8; }
+
+    .row-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Nav ────────────────────────────────── */
+    .nav {
+      position: sticky; bottom: 0; z-index: 100;
+      display: flex;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      background: rgba(9,8,18,0.95);
+      padding-bottom: max(env(safe-area-inset-bottom), 8px);
+    }
+    .nav-item {
+      flex: 1; padding: 13px 0 10px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 5px;
+      cursor: pointer; opacity: 0.22; transition: opacity 0.3s;
+    }
+    .nav-item.active { opacity: 1; }
+    .nav-item:hover  { opacity: 0.5; }
+    .nav-icon  { font-size: 15px; line-height: 1; }
+    .nav-label { font-size: 10px; font-weight: 300; letter-spacing: 0.06em; color: #9090b8; }
+    .nav-item.active .nav-label { color: #b090e0; }
+  </style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="header">
+    <div class="logo">thinq</div>
+    <div class="header-title">あなたの波</div>
+  </div>
+
+  <!-- Aurora Ring -->
+  <div class="ring-section">
+    <canvas id="ringCanvas"></canvas>
+    <div class="growth-label" id="growthLabel">
+      <span class="growth-days">17日間</span>
+      <span class="growth-count">31</span>
+      <span class="growth-unit">回の記録</span>
+    </div>
+  </div>
+
+  <!-- 感情割合バー -->
+  <div class="emotion-bars" id="emotionBars"></div>
+
+  <div class="section-divider"></div>
+
+  <!-- 履歴リスト -->
+  <div class="scroll" id="scroll"></div>
+
+  <div class="nav">
+    <div class="nav-item" onclick="location.href='Thinq タイムライン.html'">
+      <div class="nav-icon">🌊</div>
+      <div class="nav-label">タイムライン</div>
+    </div>
+    <div class="nav-item" onclick="location.href='Thinq 書く画面.html'">
+      <div class="nav-icon">✏</div>
+      <div class="nav-label">書く</div>
+    </div>
+    <div class="nav-item active">
+      <div class="nav-icon">〜</div>
+      <div class="nav-label">自分の波</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── ユーザーの感情履歴データ ────────────────────────────
+// 各感情ゾーンへの「蓄積スコア」（投稿を重ねるごとに育つ）
+// 0.0〜1.0。ここでは17日間・31投稿のユーザー像を設定。
+const USER_EMOTION_WEIGHTS = {
+  // 感情ゾーン:  t範囲の中心  蓄積スコア
+  anger:  { tCenter: 0.10, score: 0.42 }, // 怒り・激情
+  anx:    { tCenter: 0.27, score: 0.78 }, // 不安・緊張 ← このユーザーはここが多い
+  sad:    { tCenter: 0.44, score: 0.55 }, // 悲しみ・孤独
+  fat:    { tCenter: 0.55, score: 0.60 }, // モヤモヤ・疲れ
+  calm:   { tCenter: 0.64, score: 0.35 }, // 穏やか・安心
+  joy:    { tCenter: 0.77, score: 0.45 }, // 喜び・感謝
+  excite: { tCenter: 0.90, score: 0.28 }, // ワクワク・高揚
+};
+
+// 感情バー表示用データ
+const EMOTION_DISPLAY = [
+  { label:'不安・緊張',  key:'anx',    pct:28, color:[182,46,162] },
+  { label:'モヤモヤ',   key:'fat',    pct:22, color:[70,66,128] },
+  { label:'悲しみ',     key:'sad',    pct:18, color:[38,74,222] },
+  { label:'喜び',       key:'joy',    pct:16, color:[62,212,70] },
+  { label:'怒り',       key:'anger',  pct:10, color:[222,38,60] },
+  { label:'穏やか',     key:'calm',   pct: 4, color:[0,205,158] },
+  { label:'ワクワク',   key:'excite', pct: 2, color:[252,198,0] },
+];
+
+// ─── Color zones ─────────────────────────────────────────
+const ZONES = [
+  { t:0.00, rgb:[205, 52, 16] }, { t:0.07, rgb:[222, 18,  0] },
+  { t:0.14, rgb:[255, 55, 10] }, { t:0.22, rgb:[222, 38,118] },
+  { t:0.30, rgb:[182, 46,162] }, { t:0.38, rgb:[ 38, 74,222] },
+  { t:0.47, rgb:[ 48, 48,192] }, { t:0.53, rgb:[ 70, 66,128] },
+  { t:0.58, rgb:[  0,162,200] }, { t:0.66, rgb:[  0,205,158] },
+  { t:0.73, rgb:[ 62,212, 70] }, { t:0.81, rgb:[168,228, 24] },
+  { t:0.88, rgb:[252,198,  0] }, { t:0.94, rgb:[255,112, 20] },
+  { t:1.00, rgb:[205, 52, 16] },
+];
+function lerpRGB(t) {
+  t = ((t%1)+1)%1;
+  for (let i=0;i<ZONES.length-1;i++){
+    const a=ZONES[i],b=ZONES[i+1];
+    if(t>=a.t&&t<=b.t){
+      const f=(t-a.t)/(b.t-a.t);
+      return a.rgb.map((v,j)=>Math.round(v+(b.rgb[j]-v)*f));
+    }
+  }
+  return ZONES[ZONES.length-1].rgb;
+}
+
+// ─── ユーザー固有のエンベロープ関数 ──────────────────────
+// USER_EMOTION_WEIGHTS を使い「育った波形」を生成
+function zoneW(t, lo, hi, ramp=0.06) {
+  if (t<=lo||t>=hi) return 0;
+  return Math.min((t-lo)/ramp,(hi-t)/ramp,1);
+}
+function sn(x) { const v=Math.sin(x); return v*v; }
+
+function userEnv(t, time) {
+  const w = USER_EMOTION_WEIGHTS;
+
+  // 各感情ゾーンの強さ = 基本波形 × 蓄積スコア
+  const anger  = Math.pow(sn(t*Math.PI*5  + time*0.38), 0.30) * zoneW(t,0.02,0.20) * w.anger.score;
+  const anx    = (sn(t*Math.PI*7  + 0.35 + time*0.62)*0.52
+               +  sn(t*Math.PI*11 + 0.75 + time*0.50)*0.28)   * zoneW(t,0.18,0.36) * w.anx.score;
+  const sad    = (Math.sin(t*Math.PI*2.8 + 1.0+time*0.30)*0.18+0.26) * zoneW(t,0.34,0.55) * w.sad.score;
+  const fat    = (Math.sin(t*Math.PI*1.6 + time*0.18)*0.08+0.18)     * zoneW(t,0.50,0.60) * w.fat.score;
+  const calm   = (Math.sin(t*Math.PI*2.2 + time*0.26)*0.17+0.34)     * zoneW(t,0.57,0.72) * w.calm.score;
+  const joy    = (Math.sin(t*Math.PI*3.8 - 0.3+time*0.38)*0.34+0.50) * zoneW(t,0.68,0.86) * w.joy.score;
+  const excite = (Math.sin(t*Math.PI*5.0 + 0.8+time*0.48)*0.46+0.50) * zoneW(t,0.82,0.99) * w.excite.score;
+
+  // 各ゾーンの最小ベース（育っていない部分もうっすら存在）
+  const base = 0.06;
+  const peak = Math.max(anger, anx, sad, fat, calm, joy, excite, base);
+
+  const breathe = 1
+    + Math.sin(time*0.55)*0.10
+    + Math.sin(time*0.34+1.8)*0.07
+    + Math.sin(time*0.78+t*2.5)*0.05;
+  return peak * breathe;
+}
+
+// ─── Ring canvas setup ────────────────────────────────────
+const ringCanvas = document.getElementById('ringCanvas');
+const ringCtx    = ringCanvas.getContext('2d');
+let dpr=1, RW=0, RH=0;
+
+function setupRingCanvas() {
+  dpr = window.devicePixelRatio || 1;
+  RW  = document.querySelector('.phone').offsetWidth || 390;
+  RH  = Math.round(RW * 0.88); // 正方形に近い高さ
+  ringCanvas.style.width  = RW + 'px';
+  ringCanvas.style.height = RH + 'px';
+  ringCanvas.width  = RW * dpr;
+  ringCanvas.height = RH * dpr;
+
+  // growthLabel の位置補正
+  const gl = document.getElementById('growthLabel');
+  gl.style.marginTop = Math.round(RH * 0.10) + 'px';
+}
+
+const N       = 200;
+const _rawH   = new Float32Array(N);
+const _smoothH= new Float32Array(N);
+
+function smoothHeights(time, maxS) {
+  for(let i=0;i<N;i++) _rawH[i] = userEnv(i/N, time) * maxS;
+  const K=5;
+  for(let i=0;i<N;i++){
+    let sum=0,wt=0;
+    for(let k=-K;k<=K;k++){
+      const w=Math.exp(-k*k*0.30);
+      sum+=_rawH[(i+k+N)%N]*w; wt+=w;
+    }
+    _smoothH[i]=sum/wt;
+  }
+}
+
+function drawRing(ts) {
+  const time = ts * 0.001;
+  ringCtx.setTransform(dpr,0,0,dpr,0,0);
+  ringCtx.fillStyle='#090812';
+  ringCtx.fillRect(0,0,RW,RH);
+
+  const cx   = RW/2;
+  const cy   = RH/2;
+  const side = Math.min(RW, RH);
+  const pulse= 1+Math.sin(time*0.52)*0.022;
+  const R    = side*0.28*pulse;
+  const maxS = side*0.24;
+  const rot  = time*0.28+Math.sin(time*0.11)*0.10;
+
+  smoothHeights(time, maxS);
+
+  // Aura
+  const aura=ringCtx.createRadialGradient(cx,cy,R*0.3,cx,cy,R+maxS*2.0);
+  aura.addColorStop(0,'rgba(110,40,190,0.12)');
+  aura.addColorStop(0.4,'rgba(80,20,150,0.05)');
+  aura.addColorStop(1,'rgba(0,0,0,0)');
+  ringCtx.fillStyle=aura;
+  ringCtx.beginPath();ringCtx.arc(cx,cy,R+maxS*2,0,Math.PI*2);ringCtx.fill();
+
+  // Inner disk
+  const disk=ringCtx.createRadialGradient(cx,cy,0,cx,cy,R*0.92);
+  disk.addColorStop(0,'rgba(90,25,170,0.18)');
+  disk.addColorStop(0.5,'rgba(50,12,120,0.07)');
+  disk.addColorStop(1,'rgba(0,0,0,0)');
+  ringCtx.fillStyle=disk;
+  ringCtx.beginPath();ringCtx.arc(cx,cy,R*0.92,0,Math.PI*2);ringCtx.fill();
+
+  // Spikes bloom
+  ringCtx.save(); ringCtx.lineWidth=3.5;
+  for(let i=0;i<N;i++){
+    const t=i/N; const angle=t*Math.PI*2+rot-Math.PI*0.5;
+    const rgb=lerpRGB(t); const h=Math.max(2,_smoothH[i]);
+    const cos=Math.cos(angle),sin=Math.sin(angle);
+    ringCtx.strokeStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.07)`;
+    ringCtx.beginPath();ringCtx.moveTo(cx+cos*R,cy+sin*R);ringCtx.lineTo(cx+cos*(R+h),cy+sin*(R+h));ringCtx.stroke();
+  }
+  ringCtx.restore();
+
+  // Spikes core
+  ringCtx.save(); ringCtx.lineWidth=1.0;
+  for(let i=0;i<N;i++){
+    const t=i/N; const angle=t*Math.PI*2+rot-Math.PI*0.5;
+    const rgb=lerpRGB(t); const h=Math.max(2,_smoothH[i]);
+    const cos=Math.cos(angle),sin=Math.sin(angle);
+    ringCtx.strokeStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.90)`;
+    ringCtx.beginPath();ringCtx.moveTo(cx+cos*R,cy+sin*R);ringCtx.lineTo(cx+cos*(R+h),cy+sin*(R+h));ringCtx.stroke();
+  }
+  ringCtx.restore();
+
+  // Base ring glow
+  ringCtx.save(); ringCtx.lineWidth=2.5; ringCtx.shadowBlur=18;
+  ringCtx.shadowColor='rgba(160,80,255,0.55)'; ringCtx.strokeStyle='rgba(140,70,240,0.20)';
+  ringCtx.beginPath();ringCtx.arc(cx,cy,R,0,Math.PI*2);ringCtx.stroke();
+  ringCtx.shadowBlur=0; ringCtx.lineWidth=1.6;
+  for(let i=0;i<40;i++){
+    const t1=i/40;
+    const a1=t1*Math.PI*2+rot-Math.PI*0.5;
+    const a2=(i+1)/40*Math.PI*2+rot-Math.PI*0.5;
+    const rgb=lerpRGB(t1);
+    ringCtx.strokeStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.40)`;
+    ringCtx.beginPath();ringCtx.arc(cx,cy,R,a1,a2);ringCtx.stroke();
+  }
+  // Inner reflection
+  ringCtx.globalAlpha=0.14; ringCtx.lineWidth=0.8;
+  for(let i=0;i<N;i+=2){
+    const t=i/N; const angle=t*Math.PI*2+rot-Math.PI*0.5;
+    const rgb=lerpRGB(t); const h=Math.max(1,_smoothH[i]*0.22);
+    const cos=Math.cos(angle),sin=Math.sin(angle);
+    ringCtx.strokeStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.50)`;
+    ringCtx.beginPath();ringCtx.moveTo(cx+cos*R,cy+sin*R);ringCtx.lineTo(cx+cos*(R-h),cy+sin*(R-h));ringCtx.stroke();
+  }
+  ringCtx.restore();
+
+  requestAnimationFrame(drawRing);
+}
+
+// ─── Emotion bars ─────────────────────────────────────────
+function buildEmotionBars() {
+  const wrap = document.getElementById('emotionBars');
+  EMOTION_DISPLAY.forEach(e => {
+    const [r,g,b] = e.color;
+    const row = document.createElement('div');
+    row.className = 'emotion-bar-row';
+    row.innerHTML = `
+      <span class="emo-label">${e.label}</span>
+      <div class="emo-track">
+        <div class="emo-fill" style="width:0%;background:rgba(${r},${g},${b},0.75)"></div>
+      </div>
+      <span class="emo-pct">${e.pct}%</span>
+    `;
+    wrap.appendChild(row);
+  });
+  // アニメーション（少し遅らせて伸ばす）
+  requestAnimationFrame(() => {
+    const fills = wrap.querySelectorAll('.emo-fill');
+    EMOTION_DISPLAY.forEach((e,i) => {
+      setTimeout(() => {
+        fills[i].style.width = e.pct + '%';
+      }, 200 + i*80);
+    });
+  });
+}
+
+// ─── History data ─────────────────────────────────────────
+const history = [
+  { month:'4月', entries:[
+    { day:'16', time:'2時間前',  label:'不安',  colors:[[182,46,162],[222,38,118]], amp:0.44,freq:7.5,speed:0.50,phase:0.8, text:'ちょっと不安なことがあって。' },
+    { day:'16', time:'6時間前',  label:'疲れ',  colors:[[70,66,128],[80,80,110]],   amp:0.20,freq:1.6,speed:0.12,phase:1.5, text:'疲れた' },
+    { day:'15', time:'1日前',    label:'悲しみ',colors:[[38,74,222],[48,48,192]],   amp:0.38,freq:3.2,speed:0.18,phase:1.2, text:'。' },
+    { day:'15', time:'1日前',    label:'不安',  colors:[[182,46,162],[70,66,128]],  amp:0.46,freq:6.0,speed:0.42,phase:1.0, text:'また同じこと考えてる。' },
+    { day:'14', time:'2日前',    label:'喜び',  colors:[[62,212,70],[168,228,24]],  amp:0.35,freq:3.8,speed:0.30,phase:2.0, text:'なんかいいことあった気がする。' },
+    { day:'13', time:'3日前',    label:'モヤモヤ',colors:[[70,66,128],[60,55,100]], amp:0.18,freq:2.0,speed:0.14,phase:1.5, text:'はあ' },
+    { day:'13', time:'3日前',    label:'不安',  colors:[[182,46,162],[222,38,118]], amp:0.50,freq:7.0,speed:0.46,phase:0.4, text:'なんで私はこうなんだろ。' },
+    { day:'12', time:'4日前',    label:'悲しみ',colors:[[38,74,222],[48,48,192]],   amp:0.36,freq:3.0,speed:0.20,phase:0.9, text:'眠れない夜。' },
+  ]},
+  { month:'3月', entries:[
+    { day:'31', time:'16日前',   label:'穏やか',colors:[[0,205,158],[40,200,180]],  amp:0.25,freq:2.5,speed:0.20,phase:1.0, text:'お風呂入ってゆっくりした。' },
+    { day:'29', time:'18日前',   label:'不安',  colors:[[182,46,162],[222,38,118]], amp:0.48,freq:6.5,speed:0.44,phase:0.6, text:'しんどい' },
+    { day:'28', time:'19日前',   label:'モヤモヤ',colors:[[70,66,128],[80,80,110]], amp:0.22,freq:1.8,speed:0.13,phase:2.0, text:'疲れた' },
+    { day:'25', time:'22日前',   label:'喜び',  colors:[[62,212,70],[252,198,0]],   amp:0.38,freq:4.0,speed:0.30,phase:1.5, text:'友達と笑った。久しぶりに。' },
+  ]},
+];
+
+// ─── Build history list ───────────────────────────────────
+const scroll   = document.getElementById('scroll');
+const rowCanvases = [];
+
+history.forEach(group => {
+  const div = document.createElement('div');
+  div.className = 'month-group';
+  const ml = document.createElement('div');
+  ml.className = 'month-label';
+  ml.textContent = group.month;
+  div.appendChild(ml);
+
+  group.entries.forEach(entry => {
+    const [r,g,b] = entry.colors[0];
+    const row = document.createElement('div');
+    row.className = 'wave-row';
+    const cid = 'rc_'+Math.random().toString(36).slice(2);
+    row.innerHTML = `
+      <div class="row-date">${entry.day}</div>
+      <div class="row-canvas-wrap"><canvas id="${cid}"></canvas></div>
+      <div class="row-meta">
+        <span class="row-label">${entry.label}</span>
+        <span class="row-time">${entry.time}</span>
+      </div>
+      <div class="row-dot" style="background:rgb(${r},${g},${b});opacity:0.7"></div>
+    `;
+    row.addEventListener('click', () => {
+      localStorage.setItem('thinq_post', JSON.stringify(entry));
+      location.href = 'Thinq 日記詳細.html';
+    });
+    div.appendChild(row);
+    rowCanvases.push({ id:cid, entry });
+  });
+  scroll.appendChild(div);
+});
+
+// ─── Init row canvases ────────────────────────────────────
+requestAnimationFrame(() => {
+  rowCanvases.forEach(({ id, entry }) => {
+    const c = document.getElementById(id);
+    if (!c) return;
+    const d = window.devicePixelRatio||1;
+    const W = c.parentElement.offsetWidth;
+    c.width  = W*d; c.height = 44*d;
+    c._dpr=d; c._entry=entry;
+  });
+});
+
+// ─── Row ribbon color ─────────────────────────────────────
+function rowColor(entry, t) {
+  const c1=entry.colors[0], c2=entry.colors[1]||entry.colors[0];
+  return c1.map((v,i)=>Math.round(v+(c2[i]-v)*t));
+}
+
+// ─── Row ribbon描画（タイムラインと同じ方式）─────────────
+function drawRibbon(ctx, entry, W, H, time) {
+  const { amp, freq, speed, phase } = entry;
+  const CY = H / 2;
+  const N  = 160;
+  const ph = time * speed * Math.PI * 2;
+
+  function waveCenter(x) {
+    const t = x / W;
+    return CY
+      + Math.sin(t * freq * Math.PI * 2 + ph + phase)               * H * amp * 0.42
+      + Math.sin(t * freq * Math.PI * 3.6 + ph * 1.25 + phase + 1)  * H * amp * 0.16
+      + Math.sin(t * freq * Math.PI * 0.8 + ph * 0.5  + phase + 2)  * H * amp * 0.10;
+  }
+
+  function ribbonThick(x) {
+    const t   = x / W;
+    const base = H * amp * 0.20;
+    const mod  = Math.sin(t * freq * Math.PI * 2 + ph + phase + Math.PI * 0.5);
+    return base * (0.5 + 1.1 * Math.abs(mod));
+  }
+
+  // グロー
+  for (let pass = 0; pass < 3; pass++) {
+    const glowW     = [14, 8, 4][pass];
+    const glowAlpha = [0.022, 0.040, 0.060][pass];
+    ctx.save(); ctx.lineWidth = glowW; ctx.lineCap = 'round';
+    for (let i = 0; i < N; i++) {
+      const x1=i*W/N, x2=(i+1)*W/N, t=i/N;
+      const [r,g,b] = rowColor(entry, t);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${glowAlpha})`;
+      ctx.beginPath(); ctx.moveTo(x1, waveCenter(x1)); ctx.lineTo(x2, waveCenter(x2)); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // リボン帯の上下エッジを計算
+  const topPts=[], botPts=[];
+  for (let i=0; i<=N; i++) {
+    const x=i*W/N, cy=waveCenter(x), hw=ribbonThick(x);
+    topPts.push({x, y:cy-hw});
+    botPts.push({x, y:cy+hw});
+  }
+
+  // 塗りつぶし帯
+  const grad = ctx.createLinearGradient(0,0,W,0);
+  for (let s=0; s<=8; s++) {
+    const t=s/8;
+    const [r,g,b] = rowColor(entry, t);
+    grad.addColorStop(t, `rgba(${r},${g},${b},0.18)`);
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(topPts[0].x, topPts[0].y);
+  for (let i=1; i<=N; i++) ctx.lineTo(topPts[i].x, topPts[i].y);
+  for (let i=N; i>=0; i--) ctx.lineTo(botPts[i].x, botPts[i].y);
+  ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.restore();
+
+  // 上エッジライン
+  ctx.save(); ctx.lineWidth=1.1; ctx.globalAlpha=0.88;
+  for (let i=0; i<N; i++) {
+    const t=i/N;
+    const [r,g,b] = rowColor(entry, t);
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.85)`;
+    ctx.beginPath(); ctx.moveTo(topPts[i].x,topPts[i].y); ctx.lineTo(topPts[i+1].x,topPts[i+1].y); ctx.stroke();
+  }
+  ctx.restore();
+
+  // 下エッジライン
+  ctx.save(); ctx.lineWidth=0.7; ctx.globalAlpha=0.45;
+  for (let i=0; i<N; i++) {
+    const t=i/N;
+    const [r,g,b] = rowColor(entry, t);
+    ctx.strokeStyle=`rgba(${r},${g},${b},0.50)`;
+    ctx.beginPath(); ctx.moveTo(botPts[i].x,botPts[i].y); ctx.lineTo(botPts[i+1].x,botPts[i+1].y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ─── Row render loop ──────────────────────────────────────
+function drawRows(ts) {
+  const time = ts * 0.001 * 0.22;
+  rowCanvases.forEach(({ id }) => {
+    const c = document.getElementById(id);
+    if (!c||!c._dpr) return;
+    const ctx = c.getContext('2d');
+    const d=c._dpr, e=c._entry;
+    const W=c.width/d, H=44;
+    ctx.setTransform(d,0,0,d,0,0);
+    ctx.clearRect(0,0,W,H);
+    drawRibbon(ctx, e, W, H, time);
+  });
+  requestAnimationFrame(drawRows);
+}
+
+// ─── Init ─────────────────────────────────────────────────
+setupRingCanvas();
+buildEmotionBars();
+requestAnimationFrame(drawRing);
+requestAnimationFrame(drawRows);
+window.addEventListener('resize', () => { setupRingCanvas(); }, { passive:true });
+</script>
+</body>
+</html>
