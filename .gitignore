@@ -1,23 +1,11 @@
-# システムファイル
-.DS_Store
-Thumbs.db
+# =================================
+# すべてのファイルをデフォルトで無視
+# =================================
+*
 
-# Obsidianワークスペース（個人設定）
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache
+# .gitignore自体は追跡
+!.gitignore
 
-# プラグインのコード本体（秘密情報が含まれる場合あり・再インストール可能）
-.obsidian/plugins/*/main.js
-.obsidian/plugins/*/styles.css
-
-# Claudianのセッションデータ
-.claudian/sessions/
-.claude/
-
-# Smart Composerのデータベース
-.smtcmp_vector_db.tar.gz
-.smtcmp_json_db/
-
-# その他
-*.log
+# 共有フォルダとその中身だけ追跡
+!共有/
+!共有/**
