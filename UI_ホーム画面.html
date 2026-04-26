@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diary Ink. — ホーム画面</title>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Hina+Mincho&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background:#1a1a1a;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+      font-family:'Zen Kurenaido', serif;
+      gap:24px;
+      padding:40px 20px;
+    }
+
+    /* テーマ切り替えボタン */
+    .theme-toggle {
+      display:flex;
+      gap:8px;
+    }
+    .theme-btn {
+      padding:6px 20px;
+      border-radius:20px;
+      border:1px solid #444;
+      background:transparent;
+      color:#888;
+      font-size:11px;
+      font-family:'Zen Kurenaido', serif;
+      letter-spacing:2px;
+      cursor:pointer;
+      transition:all .2s;
+    }
+    .theme-btn:hover { border-color:#888; color:#ccc; }
+    .theme-btn.active { background:#555; border-color:#777; color:#fff; }
+
+    /* iPhoneフレーム */
+    .phone {
+      width:390px;
+      height:844px;
+      border-radius:54px;
+      border:2px solid #333;
+      overflow:hidden;
+      position:relative;
+      box-shadow:0 40px 80px rgba(0,0,0,.6);
+      transition:background .3s;
+    }
+
+    /* ===== ダークテーマ ===== */
+    .dark .phone { background:#141414; border-color:#333; }
+    .dark .status-time { color:#e0d8cc; }
+    .dark .status-icons { color:#e0d8cc; }
+    .dark .date-main { color:#888; }
+    .dark .date-day { color:#e0d8cc; }
+    .dark .date-weekday { color:#888; }
+    .dark .weather-area { background:#1e1e1e; border-color:#2a2a2a; }
+    .dark .weather-cond { color:#aaa; }
+    .dark .weather-temp { color:#999; }
+    .dark .weather-time { color:#888; }
+    .dark .divider { background:#222; }
+    .dark .time-label { color:#888; }
+    .dark .ink-dot-name { color:#999; }
+    .dark .ink-dot-wrap.selected .ink-dot-name { color:#bbb; }
+    .dark .ink-dot.selected { border-color:rgba(255,255,255,.4); }
+    .dark .selected-ink { background:#1e1e1e; border-color:#2a2a2a; }
+    .dark .selected-name { color:#aaa; }
+    .dark .selected-name.chosen { color:#c8b898; }
+    .dark .tab-bar { background:#111; border-color:#222; }
+    .dark .tab-label { color:#999; }
+    .dark .tab-item.active .tab-label { color:#c8b898; }
+    .dark .tab-item { opacity:.4; }
+    .dark .tab-item.active { opacity:1; }
+
+    /* ===== ライトテーマ ===== */
+    .light .phone { background:#f5f0e8; border-color:#d8cfc0; }
+    .light .status-time { color:#4a3f32; }
+    .light .status-icons { color:#4a3f32; }
+    .light .date-main { color:#7a6858; }
+    .light .date-day { color:#3a3028; }
+    .light .date-weekday { color:#7a6858; }
+    .light .weather-area { background:#ede8de; border-color:#d8d0c4; }
+    .light .weather-cond { color:#6a5a48; }
+    .light .weather-temp { color:#6a5a48; }
+    .light .weather-time { color:#6a5a48; }
+    .light .divider { background:#ddd8ce; }
+    .light .time-label { color:#6a5a48; }
+    .light .ink-dot-name { color:#6a5a48; }
+    .light .ink-dot-wrap.selected .ink-dot-name { color:#4a3a28; }
+    .light .ink-dot.selected { border-color:rgba(0,0,0,.3); }
+    .light .selected-ink { background:#ede8de; border-color:#d8d0c4; }
+    .light .selected-name { color:#6a5a48; }
+    .light .selected-name.chosen { color:#6a4a28; }
+    .light .tab-bar { background:#ede8de; border-color:#d8d0c4; }
+    .light .tab-label { color:#6a5a48; }
+    .light .tab-item.active .tab-label { color:#7a5838; }
+    .light .tab-item { opacity:.5; }
+    .light .tab-item.active { opacity:1; }
+
+    /* ステータスバー */
+    .status-bar {
+      height:50px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:0 28px;
+    }
+    .status-time { font-size:15px; letter-spacing:1px; transition:color .3s; }
+    .status-icons { font-size:12px; letter-spacing:2px; transition:color .3s; }
+
+    /* メインコンテンツ */
+    .content {
+      padding:0 28px;
+      height:calc(100% - 50px - 82px);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* 日付エリア */
+    .date-area { margin-top:32px; margin-bottom:8px; }
+    .date-main { font-size:13px; letter-spacing:3px; margin-bottom:6px; transition:color .3s; }
+    .date-day { font-size:42px; letter-spacing:2px; font-weight:normal; line-height:1; margin-bottom:4px; transition:color .3s; }
+    .date-weekday { font-size:11px; letter-spacing:4px; transition:color .3s; }
+
+    /* 天気エリア */
+    .weather-area {
+      display:flex; align-items:center; gap:8px;
+      margin-top:16px; padding:10px 14px;
+      border-radius:12px; border:1px solid;
+      transition:background .3s, border-color .3s;
+    }
+    .weather-icon { font-size:20px; }
+    .weather-info { flex:1; }
+    .weather-cond { font-size:13px; letter-spacing:2px; transition:color .3s; }
+    .weather-temp { font-size:13px; letter-spacing:1px; margin-top:2px; transition:color .3s; }
+    .weather-time { font-size:11px; letter-spacing:1px; transition:color .3s; }
+
+    /* 区切り */
+    .divider { width:100%; height:1px; margin:20px 0; transition:background .3s; }
+
+    /* 時間帯ラベル */
+    .time-label {
+      font-size:11px; letter-spacing:2px; margin-bottom:12px;
+      display:flex; align-items:center; gap:10px;
+      transition:color .3s;
+    }
+    .time-label::before {
+      content:''; display:block;
+      width:3px; height:14px; border-radius:2px; flex-shrink:0;
+    }
+    .time-label.toki::before { background:#b07848; }
+    .time-label.sora::before { background:#78c8f0; }
+
+    /* インク提案 */
+    .ink-suggestion { margin-bottom:16px; }
+    .ink-dots { display:flex; gap:12px; align-items:center; }
+    .ink-dot-wrap {
+      display:flex; flex-direction:column; align-items:center;
+      gap:6px; cursor:pointer;
+    }
+    .ink-dot {
+      width:44px; height:44px; border-radius:50%;
+      box-shadow:0 4px 12px rgba(0,0,0,.2);
+      transition:transform .2s; border:2px solid transparent;
+    }
+    .ink-dot.selected { transform:scale(1.15); }
+    .ink-dot-name {
+      font-size:11px; text-align:center; line-height:1.3;
+      max-width:52px; white-space:nowrap;
+      overflow:hidden; text-overflow:ellipsis;
+      transition:color .3s;
+    }
+
+    /* 選択中インク */
+    .selected-ink {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 14px; border-radius:10px; border:1px solid;
+      margin-top:auto; margin-bottom:12px;
+      transition:background .3s, border-color .3s;
+    }
+    .selected-dot { width:16px; height:16px; border-radius:50%; flex-shrink:0; }
+    .selected-name { font-size:13px; letter-spacing:1px; transition:color .3s; }
+
+    /* 書くボタン */
+    .write-btn {
+      width:100%; padding:18px;
+      background:linear-gradient(135deg, #8a7058 0%, #6a5038 100%);
+      border:none; border-radius:18px;
+      color:#f0e8d8; font-size:15px;
+      font-family:'Zen Kurenaido', serif;
+      letter-spacing:6px; cursor:pointer;
+      margin-bottom:24px;
+      box-shadow:0 8px 24px rgba(0,0,0,.2);
+      transition:opacity .2s;
+    }
+    .write-btn:hover { opacity:.85; }
+
+    /* タブバー */
+    .tab-bar {
+      position:absolute; bottom:0; left:0; right:0;
+      height:82px; border-top:1px solid;
+      display:flex; justify-content:space-around;
+      align-items:flex-start; padding-top:12px;
+      transition:background .3s, border-color .3s;
+    }
+    .tab-item {
+      display:flex; flex-direction:column; align-items:center;
+      gap:4px; cursor:pointer; transition:opacity .2s;
+    }
+    .tab-icon { font-size:22px; }
+    .tab-label { font-size:11px; letter-spacing:2px; transition:color .3s; }
+
+  </style>
+</head>
+<body class="dark">
+
+  <!-- テーマ切り替え -->
+  <div class="theme-toggle">
+    <button class="theme-btn active" onclick="setTheme('dark')">ダーク</button>
+    <button class="theme-btn" onclick="setTheme('light')">ライト</button>
+  </div>
+
+  <div class="phone">
+
+    <!-- ステータスバー -->
+    <div class="status-bar">
+      <span class="status-time">9:41</span>
+      <span class="status-icons">● ● ●</span>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="content">
+
+      <!-- 日付 -->
+      <div class="date-area">
+        <div class="date-main">2026 / 04</div>
+        <div class="date-day">23</div>
+        <div class="date-weekday">THURSDAY</div>
+      </div>
+
+      <!-- 天気 -->
+      <div class="weather-area">
+        <span class="weather-icon">☀️</span>
+        <div class="weather-info">
+          <div class="weather-cond">快晴・秋田市</div>
+          <div class="weather-temp">12°C</div>
+        </div>
+        <div class="weather-time">現在</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- 時のインク -->
+      <div class="time-label toki">時のインク — 朝 8〜11時</div>
+      <div class="ink-suggestion">
+        <div class="ink-dots">
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#b07848','朝日のちコーヒー')">
+            <div class="ink-dot" style="background:#b07848;"></div>
+            <div class="ink-dot-name">朝日のちコーヒー</div>
+          </div>
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#70b8d8','今日の色を選ぶ')">
+            <div class="ink-dot" style="background:#70b8d8;"></div>
+            <div class="ink-dot-name">今日の色を選ぶ</div>
+          </div>
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#ccd8e0','気づかないふり')">
+            <div class="ink-dot" style="background:#ccd8e0;"></div>
+            <div class="ink-dot-name">気づかないふり</div>
+          </div>
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#486890','雨のせいにした')">
+            <div class="ink-dot" style="background:#486890;"></div>
+            <div class="ink-dot-name">雨のせいにした</div>
+          </div>
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#88b870','書きはじめた日')">
+            <div class="ink-dot" style="background:#88b870;"></div>
+            <div class="ink-dot-name">書きはじめた日</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 空のインク -->
+      <div class="time-label sora">空のインク — 快晴</div>
+      <div class="ink-suggestion">
+        <div class="ink-dots">
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#78c8f0','書き心地よく')">
+            <div class="ink-dot" style="background:#78c8f0;"></div>
+            <div class="ink-dot-name">書き心地よく</div>
+          </div>
+          <div class="ink-dot-wrap" onclick="selectInk(this,'#1a60a8','どこまでも遠く')">
+            <div class="ink-dot" style="background:#1a60a8;"></div>
+            <div class="ink-dot-name">どこまでも遠く</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 共通選択エリア -->
+      <div class="selected-ink">
+        <div class="selected-dot" id="selectedDot" style="background:#666;"></div>
+        <div class="selected-name" id="selectedName">どのインクにしますか</div>
+      </div>
+
+      <!-- 書くボタン -->
+      <button class="write-btn">今日を書く</button>
+
+    </div>
+
+    <!-- タブバー -->
+    <div class="tab-bar">
+      <div class="tab-item active">
+        <span class="tab-icon">🏠</span>
+        <span class="tab-label">ホーム</span>
+      </div>
+      <div class="tab-item">
+        <span class="tab-icon">📅</span>
+        <span class="tab-label">カレンダー</span>
+      </div>
+      <div class="tab-item">
+        <span class="tab-icon">📖</span>
+        <span class="tab-label">日記</span>
+      </div>
+      <div class="tab-item">
+        <span class="tab-icon">⚙️</span>
+        <span class="tab-label">設定</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function setTheme(theme) {
+      document.body.className = theme;
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function selectInk(el, color, name) {
+      document.querySelectorAll('.ink-dot-wrap').forEach(w => {
+        w.classList.remove('selected');
+        w.querySelector('.ink-dot').classList.remove('selected');
+      });
+      el.classList.add('selected');
+      el.querySelector('.ink-dot').classList.add('selected');
+      document.getElementById('selectedDot').style.background = color;
+      const nameEl = document.getElementById('selectedName');
+      nameEl.textContent = name;
+      nameEl.classList.add('chosen');
+    }
+  </script>
+
+</body>
+</html>

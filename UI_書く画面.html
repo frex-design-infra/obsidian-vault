@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diary Ink. — 書く画面</title>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Kurenaido&family=Hina+Mincho&family=Yuji+Mai&family=Yuji+Boku&display=swap" rel="stylesheet">
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <filter id="nib-ef" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="2" result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.6" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="0.25" result="blur"/>
+        <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 38 -11"/>
+      </filter>
+      <filter id="nib-f" x="-5%" y="-5%" width="110%" height="110%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.55" result="blur"/>
+        <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -6"/>
+      </filter>
+      <filter id="nib-m" x="-8%" y="-8%" width="116%" height="116%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.75" result="blur"/>
+        <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 14 -3"/>
+      </filter>
+      <filter id="nib-b" x="-8%" y="-8%" width="116%" height="116%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="0.9" result="blur"/>
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="5" result="noise2"/>
+        <feDisplacementMap in="blur" in2="noise2" scale="0.8" result="displaced"/>
+        <feGaussianBlur in="displaced" stdDeviation="0.35" result="blur2"/>
+        <feColorMatrix in="blur2" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 10 -1.5"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background:#1a1a1a;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      min-height:100vh;
+      font-family:'Zen Kurenaido', serif;
+      gap:24px;
+      padding:40px 20px;
+    }
+
+    /* テーマ切り替え */
+    .theme-toggle { display:flex; gap:8px; }
+    .theme-btn {
+      padding:6px 20px; border-radius:20px;
+      border:1px solid #444; background:transparent;
+      color:#888; font-size:11px;
+      font-family:'Zen Kurenaido', serif;
+      letter-spacing:2px; cursor:pointer; transition:all .2s;
+    }
+    .theme-btn:hover { border-color:#888; color:#ccc; }
+    .theme-btn.active { background:#555; border-color:#777; color:#fff; }
+
+    /* iPhoneフレーム */
+    .phone {
+      width:390px; height:844px;
+      border-radius:54px; border:2px solid;
+      overflow:hidden; position:relative;
+      box-shadow:0 40px 80px rgba(0,0,0,.6);
+      transition:background .3s, border-color .3s;
+    }
+
+    /* ===== ダーク ===== */
+    .dark .phone { background:#141414; border-color:#333; }
+    .dark .nav-bar { background:#141414; border-color:#222; }
+    .dark .nav-date { color:#888; }
+    .dark .nav-btn { color:#999; }
+    .dark .nav-save { color:#c8b898; }
+    .dark .ink-bar { background:#1a1a1a; border-color:#252525; }
+    .dark .ink-bar-dot { box-shadow:0 2px 8px rgba(0,0,0,.5); }
+    .dark .ink-bar-name { color:#888; }
+    .dark .paper { background:#141414; }
+    .dark .paper-lined .line { background:#1e1e1e; }
+    .dark .paper-grid .line-h { background:#1e1e1e; }
+    .dark .paper-grid .line-v { background:#1e1e1e; }
+    .dark .diary-date-text { color:#888; }
+    .dark .diary-input { color:#e0d8cc; caret-color:#c8b898; }
+    .dark .diary-input::placeholder { color:#555; }
+    .dark .toolbar { background:#111; border-color:#222; }
+    .dark .tool-btn { color:#999; border-color:#2a2a2a; background:#1a1a1a; }
+    .dark .tool-btn.active { color:#e0d8cc; border-color:#555; background:#2a2a2a; }
+    .dark .tool-section-label { color:#888; }
+
+    /* ===== ライト ===== */
+    .light .phone { background:#f5f0e8; border-color:#d8cfc0; }
+    .light .nav-bar { background:#f5f0e8; border-color:#ddd8ce; }
+    .light .nav-date { color:#6a5a48; }
+    .light .nav-btn { color:#6a5a48; }
+    .light .nav-save { color:#7a5838; }
+    .light .ink-bar { background:#ede8de; border-color:#d8d0c4; }
+    .light .ink-bar-dot { box-shadow:0 2px 8px rgba(0,0,0,.15); }
+    .light .ink-bar-name { color:#6a5a48; }
+    .light .paper { background:#f5f0e8; }
+    .light .paper-lined .line { background:#e8e0d4; }
+    .light .paper-grid .line-h { background:#e8e0d4; }
+    .light .paper-grid .line-v { background:#e8e0d4; }
+    .light .diary-date-text { color:#6a5a48; }
+    .light .diary-input { color:#3a3028; caret-color:#7a5838; }
+    .light .diary-input::placeholder { color:#c8c0b4; }
+    .light .toolbar { background:#ede8de; border-color:#d8d0c4; }
+    .light .tool-btn { color:#6a5a48; border-color:#d8d0c4; background:#f5f0e8; }
+    .light .tool-btn.active { color:#4a3a28; border-color:#a08060; background:#e8dfd0; }
+    .light .tool-section-label { color:#6a5a48; }
+
+    /* ナビバー（上） */
+    .nav-bar {
+      height:50px; display:flex;
+      align-items:center; justify-content:space-between;
+      padding:0 20px; border-bottom:1px solid;
+      transition:background .3s, border-color .3s;
+    }
+    .nav-btn { font-size:13px; letter-spacing:1px; cursor:pointer; transition:color .3s; }
+    .nav-date { font-size:11px; letter-spacing:3px; transition:color .3s; }
+    .nav-save { font-size:13px; letter-spacing:2px; cursor:pointer; transition:color .3s; }
+
+    /* 選択中インクバー */
+    .ink-bar {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 20px; border-bottom:1px solid;
+      transition:background .3s, border-color .3s;
+    }
+    .ink-bar-dot {
+      width:18px; height:18px; border-radius:50%; flex-shrink:0;
+      transition:box-shadow .3s;
+    }
+    .ink-bar-name { font-size:12px; letter-spacing:2px; transition:color .3s; }
+
+    /* 紙エリア */
+    .paper {
+      position:relative;
+      height:calc(100% - 50px - 38px - 140px);
+      overflow:hidden;
+      transition:background .3s;
+    }
+
+    /* 罫線 */
+    .paper-lined .line {
+      position:absolute; left:0; right:0;
+      height:1px; transition:background .3s;
+    }
+    /* グリッド */
+    .paper-grid .line-h {
+      position:absolute; left:0; right:0;
+      height:1px; transition:background .3s;
+    }
+    .paper-grid .line-v {
+      position:absolute; top:0; bottom:0;
+      width:1px; transition:background .3s;
+    }
+
+    /* 日記テキスト */
+    .diary-date-text {
+      padding:16px 24px 0;
+      font-size:11px; letter-spacing:3px;
+      transition:color .3s;
+    }
+    .diary-input {
+      width:100%; height:calc(100% - 36px);
+      padding:12px 24px;
+      background:transparent; border:none; outline:none;
+      font-family:'Zen Kurenaido', serif;
+      font-size:17px; line-height:2.2;
+      letter-spacing:1.5px;
+      resize:none; transition:color .3s, filter .3s;
+    }
+
+    /* ツールバー（下） */
+    .toolbar {
+      position:absolute; bottom:0; left:0; right:0;
+      height:140px; border-top:1px solid;
+      padding:10px 16px;
+      display:flex; flex-direction:column; gap:8px;
+      transition:background .3s, border-color .3s;
+    }
+
+    .tool-row {
+      display:flex; align-items:center; gap:6px;
+    }
+    .tool-section-label {
+      font-size:11px; letter-spacing:2px;
+      min-width:32px; transition:color .3s;
+    }
+    .tool-btn {
+      padding:8px 12px; border-radius:14px;
+      border:1px solid; font-size:11px;
+      font-family:'Zen Kurenaido', serif;
+      letter-spacing:1px; cursor:pointer;
+      transition:all .2s;
+    }
+    .tool-btn.active { font-weight:bold; }
+
+  </style>
+</head>
+<body class="dark">
+
+  <!-- テーマ切り替え -->
+  <div class="theme-toggle">
+    <button class="theme-btn active" onclick="setTheme('dark')">ダーク</button>
+    <button class="theme-btn" onclick="setTheme('light')">ライト</button>
+  </div>
+
+  <div class="phone">
+
+    <!-- ナビバー -->
+    <div class="nav-bar">
+      <span class="nav-btn" onclick="history.back()">← 戻る</span>
+      <span class="nav-date">2026 / 04 / 23</span>
+      <span class="nav-save">保存</span>
+    </div>
+
+    <!-- 選択中インクバー -->
+    <div class="ink-bar">
+      <div class="ink-bar-dot" id="inkDot" style="background:#b07848;"></div>
+      <span class="ink-bar-name" id="inkName">朝日のちコーヒー</span>
+    </div>
+
+    <!-- 紙エリア -->
+    <div class="paper" id="paper">
+      <!-- 罫線（デフォルト） -->
+      <div id="lines"></div>
+
+      <div class="diary-date-text">2026年4月23日（木）朝</div>
+      <textarea class="diary-input" id="diaryInput"
+        placeholder="今日のことを、書きはじめてみてください。"
+        style="color:#b07848; filter:url(#nib-f);"
+      ></textarea>
+    </div>
+
+    <!-- ツールバー -->
+    <div class="toolbar">
+
+      <!-- ペン先 -->
+      <div class="tool-row">
+        <span class="tool-section-label">ペン先</span>
+        <button class="tool-btn" onclick="setNib('ef',this)">EF</button>
+        <button class="tool-btn active" onclick="setNib('f',this)">F</button>
+        <button class="tool-btn" onclick="setNib('m',this)">M</button>
+        <button class="tool-btn" onclick="setNib('b',this)">B</button>
+      </div>
+
+      <!-- 書式 -->
+      <div class="tool-row">
+        <span class="tool-section-label">書式</span>
+        <button class="tool-btn active" onclick="setFont('zen',this)">書式1</button>
+        <button class="tool-btn" onclick="setFont('hina',this)">書式2</button>
+        <button class="tool-btn" onclick="setFont('mai',this)">書式3</button>
+        <button class="tool-btn" onclick="setFont('boku',this)">書式4</button>
+      </div>
+
+      <!-- 紙質 -->
+      <div class="tool-row">
+        <span class="tool-section-label">紙質</span>
+        <button class="tool-btn" onclick="setPaper('plain',this)">無地</button>
+        <button class="tool-btn active" onclick="setPaper('lined',this)">罫線</button>
+        <button class="tool-btn" onclick="setPaper('grid',this)">方眼</button>
+        <button class="tool-btn" onclick="setPaper('washi',this)">和紙</button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const fonts = {
+      zen:  "'Zen Kurenaido', serif",
+      hina: "'Hina Mincho', serif",
+      mai:  "'Yuji Mai', serif",
+      boku: "'Yuji Boku', serif",
+    };
+    const nibs = { ef:'nib-ef', f:'nib-f', m:'nib-m', b:'nib-b' };
+
+    let currentNib = 'f';
+    let currentFont = 'zen';
+    let currentPaper = 'lined';
+
+    function setTheme(theme) {
+      document.body.className = theme;
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function setNib(nib, btn) {
+      currentNib = nib;
+      document.getElementById('diaryInput').style.filter = `url(#${nibs[nib]})`;
+      setFontSize(nib);
+      document.querySelectorAll('.tool-row:nth-child(1) .tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function setFontSize(nib) {
+      const sizes = { ef:'14px', f:'17px', m:'20px', b:'23px' };
+      document.getElementById('diaryInput').style.fontSize = sizes[nib];
+    }
+
+    function setFont(font, btn) {
+      currentFont = font;
+      document.getElementById('diaryInput').style.fontFamily = fonts[font];
+      document.querySelectorAll('.tool-row:nth-child(2) .tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function setPaper(type, btn) {
+      currentPaper = type;
+      const paper = document.getElementById('paper');
+      const linesEl = document.getElementById('lines');
+      linesEl.innerHTML = '';
+      paper.className = 'paper';
+
+      if (type === 'lined') {
+        paper.classList.add('paper-lined');
+        for (let i = 1; i <= 20; i++) {
+          const line = document.createElement('div');
+          line.className = 'line';
+          line.style.top = (i * 36) + 'px';
+          linesEl.appendChild(line);
+        }
+      } else if (type === 'grid') {
+        paper.classList.add('paper-grid');
+        for (let i = 1; i <= 20; i++) {
+          const lh = document.createElement('div');
+          lh.className = 'line-h';
+          lh.style.top = (i * 28) + 'px';
+          linesEl.appendChild(lh);
+        }
+        for (let i = 1; i <= 14; i++) {
+          const lv = document.createElement('div');
+          lv.className = 'line-v';
+          lv.style.left = (i * 28) + 'px';
+          linesEl.appendChild(lv);
+        }
+      } else if (type === 'washi') {
+        paper.style.background = 'repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(180,160,120,.08) 35px, rgba(180,160,120,.08) 36px)';
+      }
+
+      document.querySelectorAll('.tool-row:nth-child(3) .tool-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // 初期罫線
+    setPaper('lined', document.querySelector('.tool-row:nth-child(3) .tool-btn:nth-child(3)'));
+  </script>
+
+</body>
+</html>
