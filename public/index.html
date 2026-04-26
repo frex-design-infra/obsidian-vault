@@ -151,6 +151,20 @@ td.notes-col input { text-align: left; }
 .approval-list { margin-top: 8px; font-size: 12px; }
 .approval-list li { padding: 3px 0; color: #555; list-style: none; }
 
+/* 評価対象外セル */
+td.col-na { background: #e8e8e8; cursor: default; }
+
+/* 諸元コンボボックス */
+.combo-wrap { position: relative; display: flex; gap: 2px; }
+.combo-input { flex: 1; min-width: 0; }
+.combo-btn { width: 26px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; font-size: 12px; color: #555; padding: 0; flex-shrink: 0; }
+.combo-btn:hover { background: #ddd; }
+.combo-list { display: none; position: absolute; top: 100%; left: 0; right: 26px; max-height: 220px; overflow-y: auto; background: white; border: 1px solid #b0b8c8; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 200; }
+.combo-item { padding: 5px 10px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.combo-item:hover { background: #f0f4ff; }
+.combo-item.combo-selected { background: #dbe8ff; font-weight: 600; }
+.combo-item.combo-hidden { display: none; }
+
 /* SQLコードブロック */
 .sql-block { background: #1a1a2e; color: #a8d8a8; border-radius: 6px; padding: 12px 14px; font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.7; overflow-x: auto; white-space: pre; max-height: 220px; overflow-y: auto; }
 </style>
@@ -159,131 +173,22 @@ td.notes-col input { text-align: left; }
 
 <header>
   <h1>国総研調書作成ツール</h1>
-  <span class="sub" style="margin-left:14px">道路橋定期点検 — 過年度→国総研様式 変換・エクスポート</span>
-  <div class="header-user">
-    <span class="email" id="header-user-email"></span>
-    <button id="btn-logout" class="btn btn-sm"
-      style="display:none;color:white;border:1px solid rgba(255,255,255,0.4);background:transparent"
-      onclick="doLogout()">ログアウト</button>
-  </div>
+  <span class="sub">道路橋定期点検 — 過年度→国総研様式 変換・エクスポート</span>
 </header>
 
-<!-- ===== ログインオーバーレイ ===== -->
-<div id="login-overlay">
-  <div class="login-card">
-    <h2>国総研調書作成ツール</h2>
-    <span class="sub">ログインしてください</span>
-    <div class="form-group" style="margin-bottom:12px">
-      <label>メールアドレス</label>
-      <input type="email" id="login-email" placeholder="example@company.com" autocomplete="email"
-        onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <div class="form-group" style="margin-bottom:18px">
-      <label>パスワード</label>
-      <input type="password" id="login-password" placeholder="パスワード" autocomplete="current-password"
-        onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px" onclick="doLogin()">ログイン</button>
-    <div id="login-error" style="margin-top:10px;color:#c62828;font-size:12px;min-height:18px"></div>
-    <div id="login-config-hint" style="margin-top:14px;padding-top:12px;border-top:1px solid #eee;font-size:11px;color:#999">
-      ※ Supabase未設定の場合はログインできません。先にセットアップタブで設定してください。
-    </div>
-  </div>
-</div>
-
 <div class="tabs">
-  <div class="tab active"   data-tab="setup">セットアップ</div>
-  <div class="tab"          data-tab="import">インポート</div>
+  <div class="tab active"   data-tab="import">インポート</div>
   <div class="tab"          data-tab="review">確認・編集</div>
   <div class="tab"          data-tab="photos">写真管理</div>
   <div class="tab"          data-tab="export">エクスポート</div>
 </div>
 
-<!-- ===== セットアップ ===== -->
-<div id="tab-setup" class="content active">
-  <div class="card">
-    <h2>テンプレの設定</h2>
-    <p style="color:#666;font-size:13px;margin-bottom:14px">
-      エクスポート時のベースとなる <strong>template.xlsx</strong> を読み込んでください。
-    </p>
-    <div class="drop-zone" id="template-drop">
-      <div class="icon">📄</div>
-      <div>template.xlsx をドロップ、またはクリックして選択</div>
-      <div class="hint">国総研様式テンプレファイル</div>
-      <input type="file" id="template-input" accept=".xlsx,.xls" style="display:none">
-    </div>
-    <div id="template-status" style="margin-top:12px"></div>
-  </div>
-  <div class="card">
-    <h2>Supabase 接続設定</h2>
-    <p style="color:#666;font-size:13px;margin-bottom:14px">
-      SupabaseプロジェクトのURLとanon keyを入力してください。<br>
-      <span style="font-size:11px;color:#aaa">anon keyはブラウザに保存されます。チームで同じURLとキーを使用します。</span>
-    </p>
-    <div class="form-grid" style="margin-bottom:12px">
-      <div class="form-group">
-        <label>Supabase URL</label>
-        <input type="url" id="sb-url" placeholder="https://xxxx.supabase.co">
-      </div>
-      <div class="form-group">
-        <label>anon key</label>
-        <input type="text" id="sb-key" placeholder="eyJhbGci...">
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <button class="btn btn-primary" onclick="saveSupabaseConfig()">保存して接続</button>
-      <span id="sb-save-status" style="font-size:12px;color:#2e7d32"></span>
-    </div>
-    <details style="margin-top:16px">
-      <summary style="cursor:pointer;font-size:12px;color:#1565c0;font-weight:600">Supabase で実行するSQL（初回のみ）</summary>
-      <div class="sql-block" style="margin-top:8px">create table public.bridges (
-  id uuid default gen_random_uuid() primary key,
-  management_number text,
-  name text,
-  data jsonb not null,
-  created_by uuid references auth.users(id),
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
-create table public.approvals (
-  id uuid default gen_random_uuid() primary key,
-  bridge_id uuid references public.bridges(id) on delete cascade,
-  user_id uuid references auth.users(id),
-  user_email text,
-  notes text,
-  approved_at timestamptz default now()
-);
-
-alter table public.bridges enable row level security;
-alter table public.approvals enable row level security;
-
-create policy "bridges_select" on public.bridges for select to authenticated using (true);
-create policy "bridges_insert" on public.bridges for insert to authenticated with check (true);
-create policy "bridges_update" on public.bridges for update to authenticated using (true);
-create policy "approvals_select" on public.approvals for select to authenticated using (true);
-create policy "approvals_insert" on public.approvals for insert to authenticated
-  with check (auth.uid() = user_id);</div>
-    </details>
-  </div>
-
-  <div class="card">
-    <h2>使い方</h2>
-    <ol style="font-size:13px;color:#555;line-height:2;padding-left:20px">
-      <li><strong>セットアップ</strong>：template.xlsx を読み込む</li>
-      <li><strong>インポート</strong>：過年度点検Excelファイルを複数ドロップ</li>
-      <li><strong>確認・編集</strong>：マッピングされたデータを確認・修正</li>
-      <li><strong>写真管理</strong>：橋梁ごとに写真フォルダを選択、サムネイルで確認・番号割当</li>
-      <li><strong>エクスポート</strong>：国総研様式Excelを橋梁ごとに出力（ZIP）</li>
-    </ol>
-    <div class="alert alert-warn" style="margin-top:14px">
-      <strong>損傷図PDF連携</strong>は後日実装予定。現在は写真番号を手動で割り当ててください。
-    </div>
-  </div>
-</div>
+<!-- hidden: template input（autoLoadTemplateから使用） -->
+<input type="file" id="template-input" accept=".xlsx,.xls" style="display:none">
+<div id="template-status" style="display:none"></div>
 
 <!-- ===== インポート ===== -->
-<div id="tab-import" class="content">
+<div id="tab-import" class="content active">
   <div class="card">
     <h2>過年度点検ファイルのインポート</h2>
     <p style="color:#666;font-size:13px;margin-bottom:14px">
@@ -320,13 +225,7 @@ create policy "approvals_insert" on public.approvals for insert to authenticated
         <div class="card" id="card-actions" style="padding:14px 18px">
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="btn btn-primary btn-sm" onclick="saveCurrentBridge()">クラウドに保存</button>
-            <button class="btn btn-success btn-sm" onclick="approveBridge(selBridge)">是認する</button>
             <span id="save-status" style="font-size:11px;color:#2e7d32"></span>
-            <div id="approval-status-inline" style="margin-left:auto"></div>
-          </div>
-          <div id="approval-history" class="approval-panel" style="display:none;margin-top:10px">
-            <strong style="font-size:12px">是認履歴</strong>
-            <ul id="approval-list" class="approval-list"></ul>
           </div>
         </div>
 
@@ -456,6 +355,12 @@ let selPhoto   = -1;         // 写真タブ選択中
 let selSpan    = 0;          // 確認タブ選択径間
 
 // ============================================================
+// ブラウザのデフォルトドロップ動作を無効化
+// ============================================================
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop',     e => e.preventDefault());
+
+// ============================================================
 // TAB
 // ============================================================
 document.querySelectorAll('.tab').forEach(tab => {
@@ -465,6 +370,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     const name = tab.dataset.tab;
     document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'import') { /* デフォルト */ }
     if (name === 'review') refreshSidebar('review');
     if (name === 'photos') refreshSidebar('photos');
     if (name === 'export') refreshExportSummary();
@@ -474,27 +380,10 @@ document.querySelectorAll('.tab').forEach(tab => {
 // ============================================================
 // TEMPLATE LOAD
 // ============================================================
-const templateDrop  = document.getElementById('template-drop');
-const templateInput = document.getElementById('template-input');
-
-templateDrop.addEventListener('click', () => templateInput.click());
-templateDrop.addEventListener('dragover',  e => { e.preventDefault(); templateDrop.classList.add('dragover'); });
-templateDrop.addEventListener('dragleave', () => templateDrop.classList.remove('dragover'));
-templateDrop.addEventListener('drop', e => {
-  e.preventDefault(); templateDrop.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) loadTemplate(e.dataTransfer.files[0]);
-});
-templateInput.addEventListener('change', e => { if (e.target.files[0]) loadTemplate(e.target.files[0]); });
-
 function loadTemplate(file) {
   const reader = new FileReader();
   reader.onload = ev => {
     templateWB = XLSX.read(ev.target.result, { type: 'array' });
-    document.getElementById('template-status').innerHTML =
-      `<div class="alert alert-ok">テンプレ読み込み完了：<strong>${file.name}</strong>（シート: ${templateWB.SheetNames.join(' / ')}）</div>`;
-    templateDrop.style.borderColor = '#2e7d32';
-    templateDrop.style.background  = '#f0fdf4';
-    templateDrop.querySelector('div:not(.hint):not(.icon)').textContent = 'テンプレ設定済み（クリックで再選択）';
   };
   reader.readAsArrayBuffer(file);
 }
@@ -843,26 +732,82 @@ function renderReview(b) {
     {label:'所在地（至）',  key:'locationTo'},
     {label:'管理者',        key:'manager'},
     {label:'架設年度',      key:'foundingYear'},
-    {label:'活荷重・等級',  key:'liveLoad'},
-    {label:'適用示方書',    key:'designCode'},
+    {label:'活荷重・等級',  key:'liveLoad', opts:[
+      '不明','B活荷重','A活荷重','L活荷重','T-20（旧）','TT-43（旧）','P活荷重（歩道橋）']},
+    {label:'適用示方書',    key:'designCode', opts:[
+      '不明','道路橋示方書（令和2年）','道路橋示方書（平成24年）','道路橋示方書（平成14年）',
+      '道路橋示方書（平成8年）','道路橋示方書（昭和55年）','道路橋示方書（昭和39年）',
+      '旧道路橋示方書（昭和24年以前）']},
     {label:'橋長',          key:'bridgeLength'},
     {label:'総径間数',      key:'totalSpans'},
-    {label:'上部構造形式',  key:'superStructure'},
-    {label:'下部構造形式',  key:'subStructure'},
-    {label:'基礎形式',      key:'foundationType'},
+    {label:'上部構造形式',  key:'superStructure', opts:[
+      '不明',
+      '鋼溶接・I桁非合成','鋼溶接・I桁合成','鋼溶接・H形鋼床版','鋼溶接・I桁不明',
+      '鋼溶接・H形鋼合成','鋼溶接・H形鋼不明','鋼溶接・鋼桁橋その他',
+      '鋼溶接・箱桁合成','鋼溶接・箱桁床版','鋼溶接・箱桁不明',
+      '鋼溶接・トラス橋','鋼溶接・アーチ橋','鋼溶接・ラーメン橋','鋼溶接・その他鋼溶接橋',
+      'リベット・I桁非合成','リベット・I桁合成','リベット・I桁不明',
+      'リベット・H形鋼合成','リベット・H形鋼不明','リベット・鋼桁橋その他',
+      'リベット・箱桁合成','リベット・箱桁床版','リベット・箱桁不明',
+      'リベット・トラス橋','リベット・ラーメン橋','リベット・その他リベット橋',
+      'RC-RC床版橋（その他）','RC-RC中実床版橋','RC-RC中空床版橋','RC-RCT橋',
+      'RC-RC桁橋（その他）','RC-RC箱桁','RC-RC溝橋(BOXカルバート)',
+      'RC-アーチ橋','RC-ラーメン橋','RC-その他RC橋',
+      'PC-PC床版橋（その他）','PC-PC中実床版橋','PC-PC中空床版橋',
+      'PC-プレテン床版','PC-ポステン中空床版',
+      'PC-プレテンT桁','PC-プレテンT桁合成','PC-ポステンT桁（合成）','PC-ポステンT桁',
+      'PC-プレテン箱桁','PC-ポステン箱桁（合成）','PC-ポステン箱桁',
+      'PC-PC溝橋(BOXカルバート)','PC-ラーメン橋','PC-アーチ橋',
+      'PC-鋼管トラスウェブ橋','PC-その他PC橋',
+      'SRC-アーチ橋','SRC-その他SRC橋',
+      '石橋・アーチ橋','石橋・その他石橋',
+      '簡易H型鋼・I桁非合成','簡易H型鋼・I桁合成',
+      '簡易H型鋼・H形鋼桁非合成','簡易H型鋼・H形鋼桁合成','簡易H型鋼・H形鋼桁不明',
+      'その他・その他']},
+    {label:'下部構造形式',  key:'subStructure', opts:[
+      '重力式橋台','逆T式橋台','U型橋台','控え壁式橋台',
+      '柱式橋脚','壁式橋脚','ラーメン式橋脚','張り出し式橋脚']},
+    {label:'基礎形式',      key:'foundationType', opts:[
+      '不明','直接基礎',
+      '杭基礎（鋼管杭）','杭基礎（RC杭）','杭基礎（PHC杭）',
+      '杭基礎（場所打ちコンクリート杭）','杭基礎（鋼管ソイルセメント）',
+      'ケーソン基礎（オープン）','ケーソン基礎（ニューマチック）','鋼管矢板基礎']},
     {label:'点検日',        key:'inspectionDate'},
     {label:'緯度',          key:'latitude'},
     {label:'経度',          key:'longitude'},
-    {label:'海岸からの距離', key:'coastalDistance'},
-    {label:'緊急輸送路の指定', key:'emergencyRoute'},
-    {label:'路下条件',      key:'underCondition'},
+    {label:'海岸からの距離', key:'coastalDistance', opts:[
+      '50m未満','50m以上100m未満','100m以上200m未満',
+      '200m以上500m未満','500m以上1000m未満','1000m以上']},
+    {label:'緊急輸送路の指定', key:'emergencyRoute', opts:[
+      '不明','第1次緊急輸送路','第2次緊急輸送路','第3次緊急輸送路','指定なし']},
+    {label:'路下条件',      key:'underCondition', opts:[
+      '道路（一般道路）','道路（高速道路）','鉄道','河川','海・湖沼','その他','なし']},
   ];
-  document.getElementById('form-shogen').innerHTML = fields.map((f,fi) => `
-    <div class="form-group">
-      <label>${f.label}</label>
-      <input type="text" value="${esc(b[f.key])}"
-        oninput="bridges[${selBridge}]['${f.key}']=this.value">
-    </div>`).join('');
+  // インポート値をリストの最近似値に自動マッチ
+  fields.filter(f => f.opts).forEach(f => {
+    const raw = b[f.key];
+    if (!raw) return;
+    const matched = fuzzyMatchOpts(raw, f.opts);
+    if (matched !== raw) bridges[selBridge][f.key] = matched;
+  });
+  document.getElementById('form-shogen').innerHTML = fields.map(f => {
+    const val = esc(bridges[selBridge][f.key] || b[f.key] || '');
+    if (!f.opts) {
+      return `<div class="form-group"><label>${f.label}</label><input type="text" value="${val}" oninput="bridges[${selBridge}]['${f.key}']=this.value"></div>`;
+    }
+    const items = f.opts.map(o =>
+      `<div class="combo-item${o===bridges[selBridge][f.key]?' combo-selected':''}" data-val="${esc(o)}"
+        onmousedown="pickCombo('${f.key}',${selBridge},this.dataset.val,event)">${esc(o)}</div>`
+    ).join('');
+    return `<div class="form-group"><label>${f.label}</label>
+      <div class="combo-wrap">
+        <input type="text" class="combo-input" id="ci-${f.key}" value="${val}"
+          oninput="bridges[${selBridge}]['${f.key}']=this.value;filterCombo('${f.key}',this.value)"
+          onfocus="openCombo('${f.key}')" onblur="closeComboDelay('${f.key}')">
+        <button type="button" class="combo-btn" onclick="toggleCombo('${f.key}')">▾</button>
+        <div class="combo-list" id="cl-${f.key}">${items}</div>
+      </div></div>`;
+  }).join('');
 
   // ---- 径間タブ ----
   const spanTabsEl = document.getElementById('span-tabs');
@@ -927,9 +872,18 @@ function renderDamageTable(b) {
     // 部材番号
     html += `<td>${esc(String(m.number))}</td>`;
 
+    const naSet = getNACols(m.type);
+
     cols.slice(2, -1).forEach(c => {
       if (c.type === 'notes') return;
       const val = m.d[c.key];
+
+      // 評価対象外 → グレー
+      if (naSet.has(c.key)) {
+        html += `<td class="col-na" title="この部材種別では評価対象外"></td>`;
+        return;
+      }
+
       const warn = (c.key==='settlement' && m.d._oldSubWork) || (c.key==='bearFunc' && m.d._hasYuHari);
       let cls = c.isNew ? 'col-new' : '';
       if (warn) cls += ' col-new-warn';
@@ -1095,8 +1049,7 @@ function refreshExportSummary() {
     el.innerHTML = '<div class="alert alert-warn">インポートされた橋梁データがありません。</div>';
     return;
   }
-  const tplWarn = templateWB ? '' : '<div class="alert alert-warn" style="margin-bottom:10px">テンプレが未設定です。セットアップタブで template.xlsx を読み込んでください（未設定の場合は基本形式で出力）。</div>';
-  el.innerHTML = tplWarn + `
+  el.innerHTML = `
     <div class="alert alert-info"><strong>${bridges.length}橋</strong>をエクスポートします。</div>
     <div class="bridge-list">
       ${bridges.map((b,i) => `
@@ -1277,6 +1230,137 @@ function fillShimobuWork(wb, b) {
 // 損傷評価シートへの書き込み
 const DMG_KEYS = ['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','roadSurf','bearFunc','repairDmg','repairCls','settlement','scour'];
 const DMG_COLS = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]; // 0-indexed
+
+// ============================================================
+// 部材種別ごとの評価対象外列（国総研要領）
+// ============================================================
+// ============================================================
+// コンボボックス操作
+// ============================================================
+function openCombo(key) {
+  const cl = document.getElementById('cl-'+key);
+  if (cl) cl.style.display = 'block';
+}
+function closeComboDelay(key) {
+  setTimeout(() => {
+    const cl = document.getElementById('cl-'+key);
+    if (cl) cl.style.display = 'none';
+  }, 200);
+}
+function toggleCombo(key) {
+  const cl = document.getElementById('cl-'+key);
+  if (!cl) return;
+  if (cl.style.display === 'block') {
+    cl.style.display = 'none';
+  } else {
+    cl.querySelectorAll('.combo-item').forEach(it => it.classList.remove('combo-hidden'));
+    cl.style.display = 'block';
+    const ci = document.getElementById('ci-'+key);
+    if (ci) ci.focus();
+  }
+}
+function filterCombo(key, val) {
+  const cl = document.getElementById('cl-'+key);
+  if (!cl) return;
+  const q = val.toLowerCase();
+  cl.querySelectorAll('.combo-item').forEach(it => {
+    it.classList.toggle('combo-hidden', q.length > 0 && !it.dataset.val.toLowerCase().includes(q));
+  });
+  cl.style.display = 'block';
+}
+function pickCombo(key, bi, val, e) {
+  e.preventDefault();
+  const ci = document.getElementById('ci-'+key);
+  if (ci) ci.value = val;
+  bridges[bi][key] = val;
+  const cl = document.getElementById('cl-'+key);
+  if (cl) {
+    cl.style.display = 'none';
+    cl.querySelectorAll('.combo-item').forEach(it => {
+      it.classList.toggle('combo-selected', it.dataset.val === val);
+    });
+  }
+}
+
+// ============================================================
+// インポート値 → リスト最近似値マッチ
+// ============================================================
+function fuzzyMatchOpts(val, opts) {
+  if (!val || !opts || !opts.length) return val;
+  const v = val.trim();
+  if (opts.includes(v)) return v;
+  const normalize = s => s.replace(/[・\-\s（）()橋]/g, '').toLowerCase();
+  const vn = normalize(v);
+  if (vn.length < 2) return v;
+  let bestOpt = null, bestScore = 0;
+  for (const opt of opts) {
+    const on = normalize(opt);
+    let maxLen = 0;
+    for (let len = Math.min(vn.length, on.length); len >= 2; len--) {
+      let found = false;
+      for (let i = 0; i <= vn.length - len; i++) {
+        if (on.includes(vn.slice(i, i + len))) { found = true; break; }
+      }
+      if (found) { maxLen = len; break; }
+    }
+    if (maxLen > bestScore) { bestScore = maxLen; bestOpt = opt; }
+  }
+  return (bestScore >= 3) ? bestOpt : v;
+}
+
+// 【適用ルール】基礎データ収集要領（道路橋）令和6年版（国土交通省道路局）準拠
+// 表-3.1 損傷の種類と評価区分
+//   鋼 損傷: ①腐食 ②亀裂 ③ボルト脱落 ④破断 ⑤防食機能の劣化
+//   コンクリート損傷: ⑥ひびわれ漏水 ⑦鉄筋露出 ⑧抜け落ち ⑨床版ひびわれ ⑩PC定着部の異常
+//   共通（部材限定）: ⑪路面の凹凸 ⑫支承の機能障害 ⑬補修補強材の損傷 ⑭沈下移動傾斜 ⑮洗堀
+// ※ 補修補強材の損傷（⑬）は全部材に施工可能なため NA に含めない
+// ※ 主桁・横桁・縦桁は橋梁形式によって鋼/RC/PCが変わるため
+//    材料名が含まれない場合はルールなし（全列表示）
+const NA_RULES = [
+  // PC床版（⑥〜⑨・⑩◎、鋼材系①〜⑤外）
+  { match: /PC床版|床版\(PC\)/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','roadSurf','bearFunc','settlement','scour']) },
+  // RC床版・床版（材料不明を含む）（⑥〜⑨◎、鋼材系①〜⑤・⑩外）
+  { match: /床版/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','pcAnchor','roadSurf','bearFunc','settlement','scour']) },
+  // 橋台・橋脚・躯体（常にRC: ⑥〜⑧・⑭・⑮◎、鋼材系①〜⑤外）
+  { match: /橋台|橋脚|躯体/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','slabCrack','pcAnchor','roadSurf','bearFunc']) },
+  // 基礎・杭・フーチング（⑭沈下・⑮洗堀・⑬補修のみ対象）
+  { match: /基礎|杭|フーチング/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','roadSurf','bearFunc']) },
+  // 支承（⑫支承機能◎、腐食①・防食⑤は鋼製支承で適用するため残す）
+  { match: /支承/,
+    na: new Set(['crack','boltLoss','fracture','concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','roadSurf','settlement','scour']) },
+  // 路面・舗装（⑪路面凹凸のみ）
+  { match: /路面|舗装|アスファルト/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','bearFunc','settlement','scour']) },
+  // 対傾構・横構・補剛桁（鋼橋にのみ存在する部材→必ず鋼）
+  { match: /対傾構|横構|補剛桁/,
+    na: new Set(['concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','roadSurf','bearFunc','settlement','scour']) },
+  // ケーブル・斜材・ハンガー・主塔（斜張橋・吊橋の鋼部材、ボルト脱落は対象外）
+  { match: /ケーブル|斜材|ハンガー|主塔/,
+    na: new Set(['boltLoss','concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','roadSurf','bearFunc','settlement','scour']) },
+  // 鋼を明示した部材（鋼主桁・鋼横桁・I桁・箱桁・トラス等）
+  { match: /鋼主桁|鋼横桁|鋼縦桁|鋼桁|I桁|箱桁|トラス/,
+    na: new Set(['concrete','concPat','steelExp','fallOff','slabCrack','pcAnchor','roadSurf','bearFunc','settlement','scour']) },
+  // PC主桁・PC横桁等（⑥〜⑧・⑩◎、鋼材系①〜⑤外）
+  { match: /PC主桁|PC横桁|PC桁/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','slabCrack','roadSurf','bearFunc','settlement','scour']) },
+  // RC主桁・RC横桁等（⑥〜⑧◎、鋼材系①〜⑤・⑩外）
+  { match: /RC主桁|RC横桁|RC桁/,
+    na: new Set(['corrosion','crack','boltLoss','fracture','antiCor','antiCorCls','slabCrack','pcAnchor','roadSurf','bearFunc','settlement','scour']) },
+  // ※ 主桁・横桁・縦桁（材料未指定）→ ルールなし・全列表示
+  //    橋梁形式によって鋼/RC/PCが変わるため材料が特定できない
+];
+
+function getNACols(memberType) {
+  if (!memberType) return new Set();
+  for (const rule of NA_RULES) {
+    if (rule.match.test(memberType)) return rule.na;
+  }
+  return new Set();
+}
 
 function fillSpans(wb, b) {
   b.spans.forEach(span => {
@@ -1775,16 +1859,17 @@ function applyAllMappings() {
 // ============================================================
 // SUPABASE STATE
 // ============================================================
+const SB_URL = 'https://twolywmokxggjnugzuig.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3b2x5d21va3hnZ2pudWd6dWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NDQ0MzksImV4cCI6MjA5MTEyMDQzOX0.fviTO35D3s3Rqz3VtTVcXdlgESjiO9yz4PRvsxGHVCI';
+
 let supabaseClient = null;
-let currentUser    = null;
 
 // ============================================================
-// SUPABASE 初期化・認証
+// SUPABASE 初期化
 // ============================================================
 function initSupabase() {
-  const url = localStorage.getItem('sb_url');
-  const key = localStorage.getItem('sb_key');
-  if (!url || !key) return false;
+  const url = localStorage.getItem('sb_url') || SB_URL;
+  const key = localStorage.getItem('sb_key') || SB_KEY;
   supabaseClient = supabase.createClient(url, key);
   return true;
 }
@@ -1796,67 +1881,35 @@ function saveSupabaseConfig() {
   localStorage.setItem('sb_url', url);
   localStorage.setItem('sb_key', key);
   initSupabase();
-  document.getElementById('sb-save-status').textContent = '✓ 保存しました。ログインしてください。';
-  document.getElementById('login-config-hint').style.display = 'none';
-}
-
-async function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-password').value;
-  const errEl = document.getElementById('login-error');
-  errEl.textContent = '';
-
-  if (!supabaseClient && !initSupabase()) {
-    errEl.textContent = 'Supabaseが未設定です。セットアップタブで設定してください。';
-    return;
-  }
-
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-  if (error) { errEl.textContent = error.message; return; }
-
-  onLogin(data.user);
-}
-
-async function doLogout() {
-  if (supabaseClient) await supabaseClient.auth.signOut();
-  currentUser = null;
-  bridges = [];
-  selBridge = -1; selPhoto = -1;
-  document.getElementById('login-overlay').style.display = 'flex';
-  document.getElementById('header-user-email').textContent = '';
-  document.getElementById('btn-logout').style.display = 'none';
-}
-
-function onLogin(user) {
-  currentUser = user;
-  document.getElementById('login-overlay').style.display = 'none';
-  document.getElementById('header-user-email').textContent = user.email;
-  document.getElementById('btn-logout').style.display = 'block';
-  loadBridgesFromSupabase();
+  document.getElementById('sb-save-status').textContent = '✓ 保存しました';
 }
 
 // ============================================================
 // SUPABASE データ操作
 // ============================================================
 async function loadBridgesFromSupabase() {
-  if (!supabaseClient) return;
-  const { data, error } = await supabaseClient
-    .from('bridges')
-    .select('id, name, management_number, data, updated_at')
-    .order('updated_at', { ascending: false });
-  if (error) { console.error('load bridges:', error); return; }
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list', payload: {} })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
 
-  bridges = data.map(row => {
-    const b = row.data || {};
-    b._sbId = row.id;
-    b._approvals = [];
-    return b;
-  });
+    bridges = data.map(row => {
+      const b = row.data || {};
+      b._sbId      = row.id;
+      b._approvals = [];
+      return b;
+    });
 
-  await loadAllApprovals();
-  refreshSidebar('review');
-  refreshSidebar('photos');
-  refreshExportSummary();
+    refreshSidebar('review');
+    refreshSidebar('photos');
+    refreshExportSummary();
+  } catch(e) {
+    console.error('load bridges:', e);
+  }
 }
 
 async function loadAllApprovals() {
@@ -1881,40 +1934,46 @@ function bridgePayload(bridge) {
 }
 
 async function saveBridgeToSupabase(bridge) {
-  if (!supabaseClient || !currentUser) return null;
-
   const payload = {
     management_number: bridge.managementNumber || null,
     name: bridge.name || null,
     data: bridgePayload(bridge),
-    created_by: currentUser.id,
     updated_at: new Date().toISOString()
   };
+  if (bridge._sbId) payload.id = bridge._sbId;
 
-  if (bridge._sbId) {
-    const { error } = await supabaseClient
-      .from('bridges').update(payload).eq('id', bridge._sbId);
-    if (error) { console.error('update bridge:', error); return null; }
-    return bridge._sbId;
-  } else {
-    const { data, error } = await supabaseClient
-      .from('bridges').insert(payload).select('id').single();
-    if (error) { console.error('insert bridge:', error); return null; }
-    bridge._sbId = data.id;
-    return data.id;
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'upsert', payload })
+    });
+    const json = await res.json();
+    if (!res.ok) return { id: null, error: json.error || res.statusText };
+    bridge._sbId = json.id;
+    return { id: json.id, error: null };
+  } catch(e) {
+    return { id: null, error: e.message };
   }
 }
 
 async function saveCurrentBridge() {
-  if (selBridge < 0 || !currentUser) return;
+  if (selBridge < 0) return;
   const st = document.getElementById('save-status');
+  st.style.color = '#555';
   st.textContent = '保存中...';
-  const id = await saveBridgeToSupabase(bridges[selBridge]);
-  st.textContent = id ? `✓ 保存完了 ${new Date().toLocaleTimeString('ja-JP')}` : '✗ 保存に失敗しました';
+  const { id, error } = await saveBridgeToSupabase(bridges[selBridge]);
+  if (id) {
+    st.style.color = '#2e7d32';
+    st.textContent = `✓ 保存完了 ${new Date().toLocaleTimeString('ja-JP')}`;
+  } else {
+    st.style.color = '#c62828';
+    st.textContent = `✗ 失敗: ${error}`;
+  }
 }
 
 async function approveBridge(bi) {
-  if (bi < 0 || !currentUser) return;
+  if (bi < 0) return;
   const bridge = bridges[bi];
 
   if (!bridge._sbId) {
@@ -1922,14 +1981,15 @@ async function approveBridge(bi) {
     if (!id) { alert('保存に失敗しました'); return; }
   }
 
-  const notes = prompt(`「${bridge.name}」を是認します。\nコメント（省略可）`) ?? null;
-  if (notes === null) return; // キャンセル
+  const name = prompt(`「${bridge.name}」を是認します。\n是認者名を入力してください`);
+  if (name === null || !name.trim()) return;
+
+  const notes = prompt('コメント（省略可）') ?? '';
 
   const { error } = await supabaseClient.from('approvals').insert({
-    bridge_id : bridge._sbId,
-    user_id   : currentUser.id,
-    user_email: currentUser.email,
-    notes     : notes || null
+    bridge_id     : bridge._sbId,
+    approver_name : name.trim(),
+    notes         : notes || null
   });
 
   if (error) { alert('是認に失敗しました: ' + error.message); return; }
@@ -1950,10 +2010,10 @@ function renderApprovalStatus(bi) {
 
   if (approvals.length) {
     const latest = approvals[0];
-    inlineEl.innerHTML = `<span class="approval-ok">✓ 是認済み ${latest.user_email} (${new Date(latest.approved_at).toLocaleDateString('ja-JP')})</span>`;
+    inlineEl.innerHTML = `<span class="approval-ok">✓ 是認済み ${latest.approver_name} (${new Date(latest.approved_at).toLocaleDateString('ja-JP')})</span>`;
     histEl.style.display = 'block';
     listEl.innerHTML = approvals.map(a =>
-      `<li>✓ ${a.user_email}　${new Date(a.approved_at).toLocaleString('ja-JP')}${a.notes ? '　' + a.notes : ''}</li>`
+      `<li>✓ ${a.approver_name}　${new Date(a.approved_at).toLocaleString('ja-JP')}${a.notes ? '　' + a.notes : ''}</li>`
     ).join('');
   } else {
     inlineEl.innerHTML = '<span class="approval-no">未是認</span>';
@@ -1965,25 +2025,27 @@ function renderApprovalStatus(bi) {
 // 初期化（ページロード時）
 // ============================================================
 window.addEventListener('load', () => {
-  const savedUrl = localStorage.getItem('sb_url');
-  const savedKey = localStorage.getItem('sb_key');
-  if (savedUrl) document.getElementById('sb-url').value = savedUrl;
-  if (savedKey) document.getElementById('sb-key').value = savedKey;
+  const url = localStorage.getItem('sb_url') || SB_URL;
+  const key = localStorage.getItem('sb_key') || SB_KEY;
+  document.getElementById('sb-url').value = url;
+  document.getElementById('sb-key').value = key;
 
-  if (initSupabase()) {
-    document.getElementById('login-config-hint').style.display = 'none';
-    // 既存セッション確認
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        onLogin(session.user);
-      }
-    });
-    // 認証状態変化を監視
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
-      if (!session && currentUser) doLogout();
-    });
-  }
+  initSupabase();
+  loadBridgesFromSupabase();
+  autoLoadTemplate();
 });
+
+async function autoLoadTemplate() {
+  try {
+    const res = await fetch('template.xlsx');
+    if (!res.ok) return;
+    const buf = await res.arrayBuffer();
+    templateWB = XLSX.read(buf, { type: 'array' });
+    console.log('標準テンプレ読み込み完了');
+  } catch(e) {
+    // ローカル環境ではスキップ
+  }
+}
 
 // ============================================================
 // スクリプト動的ロード
