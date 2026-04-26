@@ -9,3 +9,8 @@
 # 共有フォルダとその中身だけ追跡
 !共有/
 !共有/**
+
+# Vercel + ツール公開用
+!vercel.json
+!public/
+!public/**
