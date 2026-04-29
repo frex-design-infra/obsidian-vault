@@ -157,6 +157,17 @@
 
 **How to apply:** CEOから残高・振込・口座に関する質問があったら日次キャッシュフロー管理システムのSupabaseデータを参照。「freeeに連携」という指示があったときだけfreee MCPツールを使用。
 
+### 残高報告のルール
+
+**残高を報告する際は：**
+1. **必ず各口座ごとにSupabaseから最新データを直接取得して再計算する**
+2. **マイナス残高は 🔴▲ で表示する**（例：🔴▲142,653）
+3. プラス残高は通常通り ¥ で表示（例：¥245,952）
+
+**Why:** 一括取得では取得漏れが発生する可能性があるため、各口座ごとに個別取得することで正確性を担保する。
+
+**How to apply:** 残高確認の指示があったら、各口座ID（akita, shinkin, gmo, paild, cash_honsha, akita_yokote, cash_yokote, card_visa, card_jib）ごとにSupabase REST APIでデータを取得し、type='in'は加算、type='out'は減算して計算する。
+
 ---
 
 ## CEOの予定確認ルール
